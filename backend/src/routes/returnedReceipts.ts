@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
+import { sendWhatsApp } from "../services/notificationService";
 
 const router = Router();
 
@@ -70,6 +71,12 @@ router.post("/:id/match", async (req: Request, res: Response) => {
   });
   await auditLog("MANUAL_MATCH", "ReturnedReceipt", receipt.id, { clientId, invoiceId });
   res.json(receipt);
+});
+
+router.post("/:id/send-whatsapp", async (req: Request, res: Response) => {
+  const result = await sendWhatsApp(parseInt(req.params.id));
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.json(result);
 });
 
 export default router;

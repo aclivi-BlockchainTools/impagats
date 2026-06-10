@@ -4,16 +4,15 @@ import { auditLog } from "../middleware/auditLog";
 
 const DEFAULT_TEMPLATE = `Hola {{client_name}},
 
-Hem rebut una devolució del rebut corresponent a la factura {{invoice_number}}.
+T'informem que s'ha retornat un rebut pendent i necessitem que facis la transferència al següent compte:
 
-Import retornat: {{amount}} €
-Concepte/rebut: {{receipt_reference}}
+🏦 {{company_iban}}
 
-Et demanem que facis la transferència de l'import pendent al següent compte:
+📅 Període: {{service_period}}
+💰 Import: {{amount}} €
+📄 Ref. rebut: {{receipt_reference}}
 
-{{company_iban}}
-
-Un cop feta, si us plau envia'ns per aquest WhatsApp el justificant bancari de la transferència.
+⚠️ IMPORTANT: Si us plau, envia'ns la foto del comprovant de pagament per aquest WhatsApp.
 
 Gràcies.
 {{company_name}}`;
@@ -42,7 +41,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
   const ibanSetting = settings.find((s) => s.key === "company_iban");
   const nameSetting = settings.find((s) => s.key === "company_name");
 
-  const template = templateSetting?.value || DEFAULT_TEMPLATE;
+  const template = templateSetting?.value?.trim() || DEFAULT_TEMPLATE;
   const companyIban = ibanSetting?.value || "ES00 0000 0000 0000 0000 0000";
   const companyName = nameSetting?.value || "Empresa";
 
@@ -51,6 +50,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
     invoice_number: receipt.invoice?.invoiceNumber || "N/A",
     amount: receipt.returnedAmount.toFixed(2),
     receipt_reference: receipt.receiptReference || "",
+    service_period: (receipt.notes || "").replace("Període: ", ""),
     company_iban: companyIban,
     company_name: companyName,
   });

@@ -3,6 +3,11 @@ import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { openwa } from "../connectors/OpenWAConnector";
 
+const KNOWN_SETTINGS = [
+  "company_name", "company_iban", "openwa_base_url", "openwa_api_key",
+  "openwa_session_id", "app_url", "return_keywords", "whatsapp_template",
+];
+
 const router = Router();
 
 router.get("/", async (_req: Request, res: Response) => {
@@ -15,6 +20,7 @@ router.get("/", async (_req: Request, res: Response) => {
 router.put("/", async (req: Request, res: Response) => {
   const updates = req.body as Record<string, string>;
   for (const [key, value] of Object.entries(updates)) {
+    if (!KNOWN_SETTINGS.includes(key)) continue;
     await prisma.appSettings.upsert({
       where: { key },
       update: { value },

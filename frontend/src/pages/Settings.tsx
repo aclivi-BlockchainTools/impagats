@@ -1,6 +1,21 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 
+const DEFAULT_TEMPLATE = `Hola {{client_name}},
+
+T'informem que s'ha retornat un rebut pendent i necessitem que facis la transferència al següent compte:
+
+🏦 {{company_iban}}
+
+📅 Període: {{service_period}}
+💰 Import: {{amount}} €
+📄 Ref. rebut: {{receipt_reference}}
+
+⚠️ IMPORTANT: Si us plau, envia'ns la foto del comprovant de pagament per aquest WhatsApp.
+
+Gràcies.
+{{company_name}}`;
+
 export default function Settings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -11,7 +26,11 @@ export default function Settings() {
   const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
-    api.getSettings().then((s) => { setSettings(s); setLoading(false); });
+    api.getSettings().then((s) => {
+      if (!s.whatsapp_template) s.whatsapp_template = DEFAULT_TEMPLATE;
+      setSettings(s);
+      setLoading(false);
+    });
   }, []);
 
   const handleSave = async () => {
@@ -161,7 +180,7 @@ export default function Settings() {
             value={settings.whatsapp_template || ""}
             onChange={(e) => set("whatsapp_template", e.target.value)}
             placeholder="Hola {{client_name}}, ..." />
-          <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+          <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{service_period}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
         </div>
 
         <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">

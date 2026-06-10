@@ -2,10 +2,20 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { sendWhatsApp } from "../services/notificationService";
+import { pick } from "../lib/validation";
 import multer from "multer";
 import path from "path";
 
-const proofUpload = multer({ dest: path.join(__dirname, "../../uploads/proofs") });
+const RECEIPT_UPDATE_FIELDS = ["status", "notes", "clientId", "invoiceId"];
+const RECEIPT_CREATE_FIELDS = ["clientId", "invoiceId", "returnedAmount", "returnDate", "receiptDate", "receiptReference", "returnReason", "notes"];
+
+const proofUpload = multer({
+  dest: path.join(__dirname, "../../uploads/proofs"),
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 const router = Router();
 
@@ -34,9 +44,51 @@ router.get("/", async (req: Request, res: Response) => {
   res.json(receipts);
 });
 
+router.post("/", async (req: Request, res: Response) => {
+  const { clientId, invoiceId, returnedAmount, returnDate, receiptDate, receiptReference, returnReason, notes } =
+    pick(req.body, RECEIPT_CREATE_FIELDS) as any;
+
+  if (!clientId) return res.status(400).json({ error: "clientId requerit" });
+  if (!returnedAmount) return res.status(400).json({ error: "returnedAmount requerit" });
+  if (!returnDate) return res.status(400).json({ error: "returnDate requerit" });
+
+  // Build rawData for the placeholder bank movement
+  const rawData: any = { manual: true };
+  if (receiptDate) rawData.Valor = receiptDate;
+
+  // Create a placeholder bank movement for manual receipts
+  const movement = await prisma.bankMovement.create({
+    data: {
+      rawData,
+      concept: receiptReference || returnReason || "Manual",
+      amount: -(returnedAmount),
+      date: new Date(returnDate),
+      reference: receiptReference || null,
+      isReturn: true,
+    },
+  });
+
+  const receipt = await prisma.returnedReceipt.create({
+    data: {
+      clientId,
+      invoiceId: invoiceId || null,
+      bankMovementId: movement.id,
+      returnedAmount,
+      returnDate: new Date(returnDate),
+      receiptReference: receiptReference || null,
+      returnReason: returnReason || null,
+      notes: notes || null,
+      status: clientId ? "MATCHED" : "DETECTED",
+    },
+  });
+
+  await auditLog("CREATE_MANUAL", "ReturnedReceipt", receipt.id, req.body);
+  res.status(201).json(receipt);
+});
+
 router.get("/:id", async (req: Request, res: Response) => {
   const receipt = await prisma.returnedReceipt.findUnique({
-    where: { id: parseInt(req.params.id) },
+    where: { id: parseInt(req.params.id as string) },
     include: {
       client: true,
       invoice: true,
@@ -50,7 +102,8 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 router.put("/:id", async (req: Request, res: Response) => {
-  const { status, notes, clientId, invoiceId } = req.body;
+  const body = pick(req.body, RECEIPT_UPDATE_FIELDS);
+  const { status, notes, clientId, invoiceId } = body as any;
   const updateData: any = { status, notes, clientId, invoiceId };
 
   if (status === "NOTIFIED") updateData.notifiedAt = new Date();
@@ -59,7 +112,7 @@ router.put("/:id", async (req: Request, res: Response) => {
   if (status === "CLOSED") updateData.closedAt = new Date();
 
   const receipt = await prisma.returnedReceipt.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: parseInt(req.params.id as string) },
     data: updateData,
   });
 
@@ -68,9 +121,9 @@ router.put("/:id", async (req: Request, res: Response) => {
 });
 
 router.post("/:id/match", async (req: Request, res: Response) => {
-  const { clientId, invoiceId } = req.body;
+  const { clientId, invoiceId } = pick(req.body, ["clientId", "invoiceId"]) as any;
   const receipt = await prisma.returnedReceipt.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: parseInt(req.params.id as string) },
     data: { clientId, invoiceId, status: "MATCHED" },
   });
   await auditLog("MANUAL_MATCH", "ReturnedReceipt", receipt.id, { clientId, invoiceId });
@@ -78,7 +131,7 @@ router.post("/:id/match", async (req: Request, res: Response) => {
 });
 
 router.post("/:id/send-whatsapp", async (req: Request, res: Response) => {
-  const result = await sendWhatsApp(parseInt(req.params.id));
+  const result = await sendWhatsApp(parseInt(req.params.id as string));
   if (!result.success) return res.status(400).json({ error: result.error });
   res.json(result);
 });
@@ -88,18 +141,18 @@ router.post("/:id/proof", proofUpload.single("file"), async (req: Request, res: 
 
   const proof = await prisma.paymentProof.create({
     data: {
-      receiptId: parseInt(req.params.id),
+      receiptId: parseInt(req.params.id as string),
       filePath: req.file.path,
       status: "RECEIVED",
     },
   });
 
   await prisma.returnedReceipt.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: parseInt(req.params.id as string) },
     data: { status: "PROOF_RECEIVED", proofReceivedAt: new Date() },
   });
 
-  await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id));
+  await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id as string));
   res.status(201).json(proof);
 });
 

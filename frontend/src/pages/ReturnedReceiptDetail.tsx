@@ -57,6 +57,10 @@ export default function ReturnedReceiptDetail() {
           <div><span className="text-sm text-gray-500">Motiu:</span> {receipt.returnReason || "-"}</div>
           <div><span className="text-sm text-gray-500">Client:</span> {receipt.client ? <>{receipt.client.name} ({receipt.client.whatsapp || "sense WhatsApp"})</> : <span className="text-orange-600">No assignat</span>}</div>
           <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({receipt.invoice.amount.toFixed(2)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
+          {receipt.notes && <div><span className="text-sm text-gray-500">Notes:</span> <span className="text-blue-700 font-medium">{receipt.notes}</span></div>}
+          {receipt.bankMovement?.rawData?.Valor && (
+            <div><span className="text-sm text-gray-500">Data emissió rebut:</span> {receipt.bankMovement.rawData.Valor}</div>
+          )}
         </div>
 
         <div className="space-y-4">

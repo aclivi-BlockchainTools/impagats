@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { config } from "../lib/config";
 import multer from "multer";
 import path from "path";
 
@@ -8,6 +9,11 @@ const router = Router();
 
 // OpenWA webhook for incoming messages
 router.post("/", upload.single("file"), async (req: Request, res: Response) => {
+  // Verify webhook secret
+  if (req.query.secret !== config.webhookSecret) {
+    return res.status(403).json({ error: "Accés no autoritzat" });
+  }
+
   const { from, body, type } = req.body;
 
   // Find client by WhatsApp number

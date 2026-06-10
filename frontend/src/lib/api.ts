@@ -45,6 +45,7 @@ export const api = {
     return request<any[]>(`/returned-receipts${qs}`);
   },
   getReturnedReceipt: (id: number) => request<any>(`/returned-receipts/${id}`),
+  createReturnedReceipt: (data: any) => request<any>("/returned-receipts", { method: "POST", body: JSON.stringify(data) }),
   updateReturnedReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   matchReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}/match`, { method: "POST", body: JSON.stringify(data) }),
   sendWhatsApp: (id: number) => request<any>(`/returned-receipts/${id}/send-whatsapp`, { method: "POST" }),

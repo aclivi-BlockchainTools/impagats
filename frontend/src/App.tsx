@@ -7,6 +7,7 @@ import InvoicesList from "./pages/InvoicesList";
 import InvoiceForm from "./pages/InvoiceForm";
 import BankImport from "./pages/BankImport";
 import ReturnedReceiptsList from "./pages/ReturnedReceiptsList";
+import ReturnedReceiptForm from "./pages/ReturnedReceiptForm";
 import ReturnedReceiptDetail from "./pages/ReturnedReceiptDetail";
 import Settings from "./pages/Settings";
 
@@ -23,6 +24,7 @@ function App() {
         <Route path="/invoices/:id" element={<InvoiceForm />} />
         <Route path="/import" element={<BankImport />} />
         <Route path="/receipts" element={<ReturnedReceiptsList />} />
+        <Route path="/receipts/new" element={<ReturnedReceiptForm />} />
         <Route path="/receipts/:id" element={<ReturnedReceiptDetail />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>

@@ -32,8 +32,9 @@ export class OpenWAConnector {
     }
 
     try {
-      // Format: phone@c.us for individual chats
-      const chatId = phone.includes("@") ? phone : `${phone}@c.us`;
+      // Format: phone@c.us for individual chats (strip leading +)
+      const cleanPhone = phone.replace(/^\+/, "");
+      const chatId = cleanPhone.includes("@") ? cleanPhone : `${cleanPhone}@c.us`;
 
       const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/messages/send-text`, {
         method: "POST",
@@ -71,9 +72,9 @@ export class OpenWAConnector {
       if (!listRes.ok) {
         return { ok: false, error: `Error llistant webhooks (HTTP ${listRes.status})` };
       }
-      const existing: any[] = await listRes.json();
+      const existing: any[] = await listRes.json() as any[];
 
-      const webhookUrl = `${appUrl}/api/openwa/webhook`;
+      const webhookUrl = `${appUrl}/api/openwa/webhook?secret=${config.webhookSecret}`;
 
       // Check if webhook already exists
       const existingWebhook = existing.find((w: any) => w.url === webhookUrl);
@@ -120,7 +121,7 @@ export class OpenWAConnector {
       if (!res.ok) {
         return { ok: false, error: `HTTP ${res.status}` };
       }
-      const webhooks = await res.json();
+      const webhooks = await res.json() as any[];
       return { ok: true, webhooks };
     } catch (err: any) {
       return { ok: false, error: err.message };
@@ -153,7 +154,7 @@ export class OpenWAConnector {
       }
 
       if (sessionId) {
-        const sessions: any[] = await sessionsRes.json();
+        const sessions: any[] = await sessionsRes.json() as any[];
         const session = sessions.find((s: any) => s.id === sessionId);
         if (!session) {
           return { ok: false, error: `Session ID "${sessionId}" no trobada. Sessions disponibles: ${sessions.map((s: any) => s.name).join(", ")}` };

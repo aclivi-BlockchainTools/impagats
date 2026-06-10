@@ -13,14 +13,51 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   iban: ["iban", "IBAN", "cuenta", "compte", "account"],
 };
 
+const ALL_HEADER_ALIASES = Object.values(COLUMN_ALIASES).flat().map((a) => a.toLowerCase());
+
 function findColumn(row: CsvRow, aliases: string[]): string | undefined {
   const keys = Object.keys(row);
-  return aliases.find((a) => keys.some((k) => k.toLowerCase().trim() === a.toLowerCase()));
+  for (const a of aliases) {
+    const match = keys.find((k) => k.toLowerCase().trim() === a.toLowerCase());
+    if (match) return match; // Return actual key, not alias
+  }
+  return undefined;
 }
 
 function getValue(row: CsvRow, aliases: string[]): string | undefined {
   const col = findColumn(row, aliases);
   return col ? row[col]?.trim() : undefined;
+}
+
+function looksLikeHeader(line: string): boolean {
+  const fields = line.toLowerCase().split(";");
+  return fields.some((f) => ALL_HEADER_ALIASES.includes(f.trim()));
+}
+
+function skipMetadataRows(content: string): string {
+  const lines = content.split(/\r?\n/);
+  let headerIdx = lines.findIndex(looksLikeHeader);
+  if (headerIdx === -1) headerIdx = 0;
+  return lines.slice(headerIdx).join("\n");
+}
+
+function parseDate(val: string | undefined): Date | null {
+  if (!val) return null;
+  // Try DD/MM/YY or DD/MM/YYYY (Catalan/Spanish format)
+  const dmyMatch = val.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1]);
+    const month = parseInt(dmyMatch[2]) - 1;
+    let year = parseInt(dmyMatch[3]);
+    if (year < 100) year += 2000;
+    const dt = new Date(year, month, day);
+    if (!isNaN(dt.getTime()) && dt.getDate() === day && dt.getMonth() === month) {
+      return dt;
+    }
+  }
+  // Fallback to native JS parsing
+  const dt = new Date(val);
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
 function parseAmount(val: string | undefined): number {
@@ -59,7 +96,8 @@ function parseAmount(val: string | undefined): number {
 
 export async function importCsv(filePath: string): Promise<{ imported: number; skipped: number }> {
   const fs = await import("fs");
-  const content = fs.readFileSync(filePath, "utf-8");
+  let content = fs.readFileSync(filePath, "utf-8");
+  content = skipMetadataRows(content);
   const rows: CsvRow[] = parse(content, {
     columns: true,
     delimiter: ";",
@@ -82,8 +120,8 @@ export async function importCsv(filePath: string): Promise<{ imported: number; s
       continue;
     }
 
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
+    const date = parseDate(dateStr);
+    if (!date) {
       skipped++;
       continue;
     }

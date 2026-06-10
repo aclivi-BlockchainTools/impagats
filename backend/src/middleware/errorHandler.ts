@@ -2,5 +2,8 @@ import { Request, Response, NextFunction } from "express";
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
   console.error(err.stack);
-  res.status(500).json({ error: err.message || "Error intern" });
+  const isDev = process.env.NODE_ENV !== "production";
+  res.status(500).json({
+    error: isDev ? err.message || "Error intern" : "Error intern del servidor",
+  });
 }

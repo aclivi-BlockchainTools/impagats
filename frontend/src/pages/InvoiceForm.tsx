@@ -26,7 +26,8 @@ export default function InvoiceForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { ...form, clientId: Number(form.clientId), amount: Number(form.amount) };
+    const data: any = { ...form, clientId: Number(form.clientId), amount: Number(form.amount) };
+    if (!data.dueDate) delete data.dueDate;
     if (isEdit) {
       await api.updateInvoice(parseInt(id!), data);
     } else {

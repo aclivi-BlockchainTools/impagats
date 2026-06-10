@@ -8,7 +8,14 @@ import { detectReturns } from "../services/returnDetector";
 import { matchAllDetected } from "../services/matchingEngine";
 import { reconcileNewMovements } from "../services/reconciliation";
 
-const upload = multer({ dest: path.join(__dirname, "../../uploads") });
+const upload = multer({
+  dest: path.join(__dirname, "../../uploads"),
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["text/csv", "application/vnd.ms-excel"];
+    const isCsv = file.mimetype === "text/csv" || file.mimetype === "application/vnd.ms-excel" || file.originalname.endsWith(".csv");
+    cb(null, isCsv);
+  },
+});
 const router = Router();
 
 router.get("/", async (_req: Request, res: Response) => {

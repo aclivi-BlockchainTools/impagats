@@ -5,6 +5,7 @@ import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { importCsv } from "../services/csvImporter";
 import { detectReturns } from "../services/returnDetector";
+import { matchAllDetected } from "../services/matchingEngine";
 
 const upload = multer({ dest: path.join(__dirname, "../../uploads") });
 const router = Router();
@@ -21,10 +22,11 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
 
   const { imported, skipped } = await importCsv(req.file.path);
   const detected = await detectReturns();
+  const matched = await matchAllDetected();
 
-  await auditLog("IMPORT_CSV", "BankMovement", undefined, { imported, skipped, detected });
+  await auditLog("IMPORT_CSV", "BankMovement", undefined, { imported, skipped, detected, matched });
 
-  res.json({ imported, skipped, detected });
+  res.json({ imported, skipped, detected, matched });
 });
 
 export default router;

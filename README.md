@@ -19,7 +19,7 @@ Aplicació de gestió d'impagats bancaris i reclamació automàtica per WhatsApp
 7. Instal·lar dependències frontend: `cd frontend && npm install`
 8. Arrencar backend: `cd backend && npm run dev`
 9. Arrencar frontend: `cd frontend && npm run dev`
-10. Obrir http://localhost:5173
+10. Obrir http://localhost:5173 (si el port està ocupat, Vite en tria un altre automàticament)
 
 ## Configuració OpenWA
 
@@ -53,7 +53,7 @@ Delimitador: punt i coma (;)
 docker compose up -d
 ```
 
-Backend a http://localhost:3001, frontend a http://localhost.
+Backend a http://localhost:3001, frontend a http://localhost:8080.
 
 ## Llicència
 

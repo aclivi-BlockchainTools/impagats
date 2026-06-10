@@ -25,24 +25,28 @@ export class OpenWAConnector {
     const { baseUrl, apiKey, sessionId } = await this.getConfig();
 
     if (!baseUrl) {
-      return { success: false, error: "OPENWA_BASE_URL no configurat" };
+      return { success: false, error: "URL del servidor OpenWA no configurada" };
+    }
+    if (!sessionId) {
+      return { success: false, error: "Session ID no configurat" };
     }
 
     try {
-      const body: any = { phone, message: text };
-      if (sessionId) body.sessionId = sessionId;
+      // Format: phone@c.us for individual chats
+      const chatId = phone.includes("@") ? phone : `${phone}@c.us`;
 
-      const res = await fetch(`${baseUrl}/api/sendMessage`, {
+      const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/messages/send-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Api-Key": apiKey,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ chatId, text }),
       });
 
       if (!res.ok) {
-        return { success: false, error: `OpenWA responded with ${res.status}` };
+        const errBody = await res.json().catch(() => ({}));
+        return { success: false, error: (errBody as any).message || `HTTP ${res.status}` };
       }
 
       const data = await res.json() as any;
@@ -58,18 +62,36 @@ export class OpenWAConnector {
     if (!baseUrl) {
       return { ok: false, error: "URL del servidor no configurada" };
     }
+    if (!apiKey) {
+      return { ok: false, error: "API Key no configurada" };
+    }
 
     try {
-      const url = sessionId
-        ? `${baseUrl}/api/status?sessionId=${encodeURIComponent(sessionId)}`
-        : `${baseUrl}/api/status`;
+      // Check server health
+      const healthRes = await fetch(`${baseUrl}/api/health`);
+      if (!healthRes.ok) {
+        return { ok: false, error: `Servidor no accessible (HTTP ${healthRes.status})` };
+      }
 
-      const res = await fetch(url, {
+      // Verify API key and session
+      const sessionsRes = await fetch(`${baseUrl}/api/sessions`, {
         headers: { "X-Api-Key": apiKey },
       });
-      if (!res.ok) {
-        return { ok: false, error: `HTTP ${res.status}` };
+      if (!sessionsRes.ok) {
+        return { ok: false, error: `API Key no vàlida (HTTP ${sessionsRes.status})` };
       }
+
+      if (sessionId) {
+        const sessions: any[] = await sessionsRes.json();
+        const session = sessions.find((s: any) => s.id === sessionId);
+        if (!session) {
+          return { ok: false, error: `Session ID "${sessionId}" no trobada. Sessions disponibles: ${sessions.map((s: any) => s.name).join(", ")}` };
+        }
+        if (session.status !== "ready") {
+          return { ok: false, error: `Sessió "${session.name}" no està ready (estat: ${session.status})` };
+        }
+      }
+
       return { ok: true };
     } catch (err: any) {
       return { ok: false, error: err.message };

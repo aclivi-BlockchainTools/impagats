@@ -41,6 +41,25 @@ export default function Settings() {
         </div>
 
         <div>
+          <h2 className="font-semibold text-lg mb-3">Connexió OpenWA</h2>
+          <div className="grid grid-cols-2 gap-4 mb-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">URL del servidor</label>
+              <input className="w-full border rounded px-3 py-2" value={settings.openwa_base_url || ""}
+                onChange={(e) => set("openwa_base_url", e.target.value)}
+                placeholder="http://localhost:8080" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">API Key</label>
+              <input className="w-full border rounded px-3 py-2" value={settings.openwa_api_key || ""}
+                onChange={(e) => set("openwa_api_key", e.target.value)}
+                placeholder="clau-api" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">Es pot configurar també via variables d'entorn OPENWA_BASE_URL i OPENWA_API_KEY al .env (els valors del formulari tenen prioritat).</p>
+        </div>
+
+        <div>
           <h2 className="font-semibold text-lg mb-3">Paraules clau per detectar devolucions</h2>
           <input className="w-full border rounded px-3 py-2" value={settings.return_keywords || ""}
             onChange={(e) => set("return_keywords", e.target.value)}

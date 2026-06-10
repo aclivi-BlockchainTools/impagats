@@ -1,25 +1,31 @@
 import { config } from "../lib/config";
+import prisma from "../lib/prisma";
 
 export class OpenWAConnector {
-  private baseUrl: string;
-  private apiKey: string;
+  private async getConfig(): Promise<{ baseUrl: string; apiKey: string }> {
+    const settings = await prisma.appSettings.findMany();
+    const baseUrlKey = settings.find((s) => s.key === "openwa_base_url");
+    const apiKeyKey = settings.find((s) => s.key === "openwa_api_key");
 
-  constructor() {
-    this.baseUrl = config.openwaBaseUrl;
-    this.apiKey = config.openwaApiKey;
+    return {
+      baseUrl: baseUrlKey?.value || config.openwaBaseUrl,
+      apiKey: apiKeyKey?.value || config.openwaApiKey,
+    };
   }
 
   async sendMessage(phone: string, text: string): Promise<{ success: boolean; externalId?: string; error?: string }> {
-    if (!this.baseUrl) {
+    const { baseUrl, apiKey } = await this.getConfig();
+
+    if (!baseUrl) {
       return { success: false, error: "OPENWA_BASE_URL no configurat" };
     }
 
     try {
-      const res = await fetch(`${this.baseUrl}/api/sendMessage`, {
+      const res = await fetch(`${baseUrl}/api/sendMessage`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Api-Key": this.apiKey,
+          "X-Api-Key": apiKey,
         },
         body: JSON.stringify({ phone, message: text }),
       });

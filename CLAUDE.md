@@ -34,7 +34,8 @@ impagats/
 │       ├── app.ts                   ← express() + routes
 │       ├── lib/
 │       │   ├── prisma.ts
-│       │   └── config.ts
+│       │   ├── config.ts
+│       │   └── validation.ts           ← whitelist d'input (pick)
 │       ├── middleware/
 │       │   ├── auditLog.ts
 │       │   └── errorHandler.ts
@@ -80,6 +81,7 @@ impagats/
             ├── InvoiceForm.tsx
             ├── BankImport.tsx
             ├── ReturnedReceiptsList.tsx
+            ├── ReturnedReceiptForm.tsx   ← creació manual d'impagat
             ├── ReturnedReceiptDetail.tsx
             └── Settings.tsx
 ```
@@ -111,7 +113,7 @@ impagats/
 | `/api/invoices` | GET, POST |
 | `/api/invoices/:id` | GET, PUT, DELETE |
 | `/api/bank-movements` | GET (llistat), POST (import CSV) |
-| `/api/returned-receipts` | GET (filtres: status, clientId, amount, dates) |
+| `/api/returned-receipts` | GET (filtres), POST (creació manual) |
 | `/api/returned-receipts/:id` | GET, PUT (status) |
 | `/api/returned-receipts/:id/match` | POST (manual match) |
 | `/api/returned-receipts/:id/send-whatsapp` | POST |
@@ -134,23 +136,28 @@ impagats/
 | `/invoices` | Llistat factures |
 | `/invoices/new`, `/invoices/:id` | Formulari crear/editar factura |
 | `/import` | Importar CSV (resultats: imported, detected, matched, reconciled) |
-| `/receipts` | Llistat impagats (filtre per estat) |
+| `/receipts` | Llistat impagats (filtre per estat, columnes Notes i Data emissió) |
+| `/receipts/new` | Formulari creació manual d'impagat |
 | `/receipts/:id` | Detall impagat (accions: WhatsApp, pujar justificant, canviar estat) |
 | `/settings` | Configuració (empresa, OpenWA, keywords, plantilla, webhook) |
 
 ## Fluxe principal
 
-1. **Crear clients i factures** manualment
-2. **Importar CSV** → detecta devolucions (paraules clau + import negatiu)
-3. **Matching automàtic** → relaciona amb factures per referència o import (±5%)
-4. **Revisar impagats** → validar o corregir matches
-5. **Enviar WhatsApp** → manual des del detall (plantilla editable)
-6. **Rebre resposta** → webhook rep missatges entrants, guarda justificants
-7. **Conciliar** → noves transferències entrants es creuen amb impagats oberts
+1. **Crear clients i factures** manualment, o **importar CSV** → auto-crea clients
+2. **Importar CSV** → detecta devolucions (paraules clau + import negatiu), calcula període de servei
+3. **Matching automàtic** → extreu nom client del concepte, fuzzy match amb BD, auto-crea si no existeix
+4. **Crear impagat manual** → des de `/receipts/new` (sense necessitat de CSV)
+5. **Revisar impagats** → validar o corregir matches
+6. **Enviar WhatsApp** → manual des del detall (plantilla editable amb variables)
+7. **Rebre resposta** → webhook rep missatges entrants, guarda justificants
+8. **Conciliar** → noves transferències entrants es creuen amb impagats oberts
+
+### Variables plantilla WhatsApp
+`{{client_name}}`, `{{invoice_number}}`, `{{amount}}`, `{{receipt_reference}}`, `{{service_period}}`, `{{company_iban}}`, `{{company_name}}`
 
 ## Configuració OpenWA
 
-- Servidor: `192.168.0.194:2785`
+- Servidor: `192.168.0.194:2886`
 - Sessió configurada: `tlliure` (id: `390fd350-...`)
 - Altres sessions disponibles: `keleris`, `importmatica`
 - Webhook registrat: `http://192.168.0.194:3001/api/openwa/webhook`
@@ -174,8 +181,19 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Monorepo simple (backend/ + frontend/), sense workspaces
 - Monousuari (sense login)
 - CSV amb delimitador `;`, noms de columna flexibles (català/castellà/anglès)
-- Connector Caixa Guissona com a placeholder (no inventar endpoints)
+- CSV: primera fila amb metadades → es detecta i salta automàticament
+- CSV: dates en format DD/MM/YY suportades (no MM/DD/YY)
+- Columna "Valor" del CSV → data d'emissió del rebut original → període de servei = mes anterior
+- Detecció de devolucions: cerca paraules clau (DEV.REBUT, devolució...) + import negatiu
+- Matching: 1) núm. factura al concepte, 2) nom client extret del concepte, 3) import ±5%
+- Si no es troba client, es crea automàticament amb el nom extret del concepte
+- WhatsApp: número sense prefix "+" (OpenWA no l'accepta)
 - WhatsApp sempre manual (no automàtic)
+- Connector Caixa Guissona com a placeholder (no inventar endpoints)
+- Validació d'input: whitelist de camps permesos a cada ruta (pick())
+- Filtre de tipus MIME a uploads: CSV, imatges i PDF
+- Webhook verificat amb token secret per URL
+- Error handler: no exposa detalls interns en producció
 - Secrets al .env, configuració no sensible a AppSettings
 - Port 5433 per postgres (5432 ocupat per openwa-postgres)
 - Port 8080 per frontend producció (80 ocupat)

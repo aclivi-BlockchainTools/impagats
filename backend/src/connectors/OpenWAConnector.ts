@@ -56,6 +56,77 @@ export class OpenWAConnector {
     }
   }
 
+  async registerWebhook(appUrl: string): Promise<{ ok: boolean; webhook?: any; error?: string }> {
+    const { baseUrl, apiKey, sessionId } = await this.getConfig();
+
+    if (!baseUrl) return { ok: false, error: "URL del servidor no configurada" };
+    if (!apiKey) return { ok: false, error: "API Key no configurada" };
+    if (!sessionId) return { ok: false, error: "Session ID no configurat" };
+
+    try {
+      // First list existing webhooks
+      const listRes = await fetch(`${baseUrl}/api/sessions/${sessionId}/webhooks`, {
+        headers: { "X-Api-Key": apiKey },
+      });
+      if (!listRes.ok) {
+        return { ok: false, error: `Error llistant webhooks (HTTP ${listRes.status})` };
+      }
+      const existing: any[] = await listRes.json();
+
+      const webhookUrl = `${appUrl}/api/openwa/webhook`;
+
+      // Check if webhook already exists
+      const existingWebhook = existing.find((w: any) => w.url === webhookUrl);
+      if (existingWebhook) {
+        return { ok: true, webhook: existingWebhook };
+      }
+
+      // Create the webhook
+      const createRes = await fetch(`${baseUrl}/api/sessions/${sessionId}/webhooks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": apiKey,
+        },
+        body: JSON.stringify({
+          url: webhookUrl,
+          events: ["message.received"],
+        }),
+      });
+
+      if (!createRes.ok) {
+        const errBody = await createRes.json().catch(() => ({}));
+        return { ok: false, error: (errBody as any).message || `Error creant webhook (HTTP ${createRes.status})` };
+      }
+
+      const webhook = await createRes.json();
+      return { ok: true, webhook };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  async getWebhooks(): Promise<{ ok: boolean; webhooks?: any[]; error?: string }> {
+    const { baseUrl, apiKey, sessionId } = await this.getConfig();
+
+    if (!baseUrl) return { ok: false, error: "URL del servidor no configurada" };
+    if (!apiKey) return { ok: false, error: "API Key no configurada" };
+    if (!sessionId) return { ok: false, error: "Session ID no configurat" };
+
+    try {
+      const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/webhooks`, {
+        headers: { "X-Api-Key": apiKey },
+      });
+      if (!res.ok) {
+        return { ok: false, error: `HTTP ${res.status}` };
+      }
+      const webhooks = await res.json();
+      return { ok: true, webhooks };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  }
+
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
     const { baseUrl, apiKey, sessionId } = await this.getConfig();
 

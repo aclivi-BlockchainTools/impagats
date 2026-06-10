@@ -7,6 +7,8 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [openwaResult, setOpenwaResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const [testing, setTesting] = useState(false);
+  const [webhookResult, setWebhookResult] = useState<{ ok: boolean; webhooks?: any[]; error?: string } | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
     api.getSettings().then((s) => { setSettings(s); setLoading(false); });
@@ -21,17 +23,41 @@ export default function Settings() {
   const handleTestOpenWA = async () => {
     setTesting(true);
     setOpenwaResult(null);
-    // First save the openwa settings
     await api.updateSettings({
       openwa_base_url: settings.openwa_base_url || "",
       openwa_api_key: settings.openwa_api_key || "",
       openwa_session_id: settings.openwa_session_id || "",
     });
-    // Then test
     const res = await fetch("/api/settings/test-openwa", { method: "POST" });
     const data = await res.json();
     setOpenwaResult(data);
     setTesting(false);
+  };
+
+  const handleRegisterWebhook = async () => {
+    setRegistering(true);
+    setWebhookResult(null);
+    // Save OpenWA settings first
+    await api.updateSettings({
+      openwa_base_url: settings.openwa_base_url || "",
+      openwa_api_key: settings.openwa_api_key || "",
+      openwa_session_id: settings.openwa_session_id || "",
+      app_url: settings.app_url || "",
+    });
+    const res = await fetch("/api/settings/register-webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appUrl: settings.app_url || window.location.origin }),
+    });
+    const data = await res.json();
+    setWebhookResult(data);
+    setRegistering(false);
+  };
+
+  const handleCheckWebhooks = async () => {
+    const res = await fetch("/api/settings/webhooks");
+    const data = await res.json();
+    setWebhookResult(data);
   };
 
   const set = (key: string, value: string) => setSettings({ ...settings, [key]: value });
@@ -91,6 +117,31 @@ export default function Settings() {
                   ? <span className="text-green-600 text-sm font-medium">Connectat correctament</span>
                   : <span className="text-red-600 text-sm">Error: {openwaResult.error}</span>
               )}
+            </div>
+
+            <div className="border-t pt-3 mt-3">
+              <label className="block text-sm font-medium mb-1">URL pública del backend (per rebre webhooks)</label>
+              <div className="flex gap-2">
+                <input className="flex-1 border rounded px-3 py-2 text-sm" value={settings.app_url || ""}
+                  onChange={(e) => set("app_url", e.target.value)}
+                  placeholder={window.location.origin} />
+                <button onClick={handleRegisterWebhook} disabled={registering || !settings.openwa_base_url || !settings.openwa_session_id}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50 text-sm whitespace-nowrap">
+                  {registering ? "Registrant..." : "Registrar webhook"}
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mt-2">
+                <button onClick={handleCheckWebhooks} className="text-xs text-blue-600 hover:underline">Verificar webhooks existents</button>
+                {webhookResult && (
+                  webhookResult.ok
+                    ? <span className="text-green-600 text-xs">
+                        {webhookResult.webhooks && webhookResult.webhooks.length > 0
+                          ? `${webhookResult.webhooks.length} webhook(s) trobat(s)`
+                          : "Cap webhook (cal registrar-ne un)"}
+                      </span>
+                    : <span className="text-red-600 text-xs">Error: {webhookResult.error}</span>
+                )}
+              </div>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">Es pot configurar també via variables d'entorn al .env (els valors del formulari tenen prioritat).</p>

@@ -30,4 +30,21 @@ router.post("/test-openwa", async (_req: Request, res: Response) => {
   res.json(result);
 });
 
+router.post("/register-webhook", async (req: Request, res: Response) => {
+  const { appUrl } = req.body;
+  if (!appUrl) {
+    return res.status(400).json({ ok: false, error: "appUrl és requerida" });
+  }
+  const result = await openwa.registerWebhook(appUrl);
+  if (result.ok) {
+    await auditLog("REGISTER_WEBHOOK", "AppSettings", undefined, { appUrl });
+  }
+  res.json(result);
+});
+
+router.get("/webhooks", async (_req: Request, res: Response) => {
+  const result = await openwa.getWebhooks();
+  res.json(result);
+});
+
 export default router;

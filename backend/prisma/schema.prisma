@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id          Int       @id @default(autoincrement())
+  name        String
+  nif         String?
+  phone       String?
+  whatsapp    String?
+  email       String?
+  externalRef String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  invoices         Invoice[]
+  returnedReceipts ReturnedReceipt[]
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  clientId       Int
+  invoiceNumber String
+  date          DateTime
+  dueDate       DateTime?
+  amount        Float
+  status        String   @default("pending")
+  externalRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client           Client           @relation(fields: [clientId], references: [id])
+  returnedReceipts ReturnedReceipt[]
+}
+
+model BankMovement {
+  id        Int      @id @default(autoincrement())
+  rawData   Json
+  concept   String?
+  amount    Float
+  date      DateTime
+  reference String?
+  iban      String?
+  isReturn  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  returnedReceipts      ReturnedReceipt[]
+  reconciliationMatches ReconciliationMatch[]
+}
+
+model ReturnedReceipt {
+  id                 Int       @id @default(autoincrement())
+  clientId            Int?
+  invoiceId           Int?
+  bankMovementId      Int
+  receiptReference    String?
+  returnedAmount      Float
+  returnDate          DateTime
+  returnReason        String?
+  status              String    @default("DETECTED")
+  notes               String?
+  detectedAt          DateTime  @default(now())
+  notifiedAt          DateTime?
+  proofReceivedAt     DateTime?
+  paymentConfirmedAt  DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  client        Client?        @relation(fields: [clientId], references: [id])
+  invoice       Invoice?       @relation(fields: [invoiceId], references: [id])
+  bankMovement  BankMovement   @relation(fields: [bankMovementId], references: [id])
+  messages      Message[]
+  proofs        PaymentProof[]
+  reconciliation ReconciliationMatch[]
+}
+
+model Message {
+  id         Int       @id @default(autoincrement())
+  receiptId   Int
+  direction  String
+  content    String?
+  sentAt     DateTime  @default(now())
+  status     String    @default("sent")
+  externalId String?
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+}
+
+model PaymentProof {
+  id         Int       @id @default(autoincrement())
+  receiptId   Int
+  filePath   String
+  status     String    @default("RECEIVED")
+  receivedAt DateTime  @default(now())
+  notes      String?
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+}
+
+model ReconciliationMatch {
+  id              Int       @id @default(autoincrement())
+  receiptId        Int
+  bankMovementId   Int
+  amount          Float
+  matchedAt       DateTime  @default(now())
+  confidence      Float     @default(1.0)
+  manual          Boolean   @default(false)
+
+  receipt       ReturnedReceipt @relation(fields: [receiptId], references: [id])
+  bankMovement  BankMovement    @relation(fields: [bankMovementId], references: [id])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  action     String
+  entityType String
+  entityId   Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+}
+
+model AppSettings {
+  key       String @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

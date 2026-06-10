@@ -2,7 +2,6 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16
-    container_name: impagats-db
     environment:
       POSTGRES_USER: impagats
       POSTGRES_PASSWORD: impagats
@@ -11,5 +10,22 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: "postgresql://impagats:impagats@postgres:5432/impagats"
+      PORT: "3001"
+      OPENWA_BASE_URL: "${OPENWA_BASE_URL:-}"
+      OPENWA_API_KEY: "${OPENWA_API_KEY:-}"
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 volumes:
   pgdata:

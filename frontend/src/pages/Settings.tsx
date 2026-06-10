@@ -5,6 +5,8 @@ export default function Settings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [openwaResult, setOpenwaResult] = useState<{ ok: boolean; error?: string } | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     api.getSettings().then((s) => { setSettings(s); setLoading(false); });
@@ -14,6 +16,22 @@ export default function Settings() {
     await api.updateSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleTestOpenWA = async () => {
+    setTesting(true);
+    setOpenwaResult(null);
+    // First save the openwa settings
+    await api.updateSettings({
+      openwa_base_url: settings.openwa_base_url || "",
+      openwa_api_key: settings.openwa_api_key || "",
+      openwa_session_id: settings.openwa_session_id || "",
+    });
+    // Then test
+    const res = await fetch("/api/settings/test-openwa", { method: "POST" });
+    const data = await res.json();
+    setOpenwaResult(data);
+    setTesting(false);
   };
 
   const set = (key: string, value: string) => setSettings({ ...settings, [key]: value });
@@ -42,21 +60,40 @@ export default function Settings() {
 
         <div>
           <h2 className="font-semibold text-lg mb-3">Connexió OpenWA</h2>
-          <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium mb-1">URL del servidor</label>
               <input className="w-full border rounded px-3 py-2" value={settings.openwa_base_url || ""}
                 onChange={(e) => set("openwa_base_url", e.target.value)}
                 placeholder="http://localhost:8080" />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">API Key</label>
-              <input className="w-full border rounded px-3 py-2" value={settings.openwa_api_key || ""}
-                onChange={(e) => set("openwa_api_key", e.target.value)}
-                placeholder="clau-api" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">API Key</label>
+                <input className="w-full border rounded px-3 py-2" value={settings.openwa_api_key || ""}
+                  onChange={(e) => set("openwa_api_key", e.target.value)}
+                  placeholder="clau-api" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Session ID</label>
+                <input className="w-full border rounded px-3 py-2" value={settings.openwa_session_id || ""}
+                  onChange={(e) => set("openwa_session_id", e.target.value)}
+                  placeholder="id-de-sessió" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={handleTestOpenWA} disabled={testing || !settings.openwa_base_url}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm">
+                {testing ? "Provant..." : "Provar connexió"}
+              </button>
+              {openwaResult && (
+                openwaResult.ok
+                  ? <span className="text-green-600 text-sm font-medium">Connectat correctament</span>
+                  : <span className="text-red-600 text-sm">Error: {openwaResult.error}</span>
+              )}
             </div>
           </div>
-          <p className="text-xs text-gray-500">Es pot configurar també via variables d'entorn OPENWA_BASE_URL i OPENWA_API_KEY al .env (els valors del formulari tenen prioritat).</p>
+          <p className="text-xs text-gray-500 mt-2">Es pot configurar també via variables d'entorn al .env (els valors del formulari tenen prioritat).</p>
         </div>
 
         <div>

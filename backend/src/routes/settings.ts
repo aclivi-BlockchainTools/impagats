@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
+import { openwa } from "../connectors/OpenWAConnector";
 
 const router = Router();
 
@@ -22,6 +23,11 @@ router.put("/", async (req: Request, res: Response) => {
   }
   await auditLog("UPDATE_SETTINGS", "AppSettings", undefined, updates);
   res.json({ ok: true });
+});
+
+router.post("/test-openwa", async (_req: Request, res: Response) => {
+  const result = await openwa.testConnection();
+  res.json(result);
 });
 
 export default router;

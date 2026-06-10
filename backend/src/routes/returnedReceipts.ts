@@ -2,6 +2,10 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { sendWhatsApp } from "../services/notificationService";
+import multer from "multer";
+import path from "path";
+
+const proofUpload = multer({ dest: path.join(__dirname, "../../uploads/proofs") });
 
 const router = Router();
 
@@ -77,6 +81,26 @@ router.post("/:id/send-whatsapp", async (req: Request, res: Response) => {
   const result = await sendWhatsApp(parseInt(req.params.id));
   if (!result.success) return res.status(400).json({ error: result.error });
   res.json(result);
+});
+
+router.post("/:id/proof", proofUpload.single("file"), async (req: Request, res: Response) => {
+  if (!req.file) return res.status(400).json({ error: "Fitxer requerit" });
+
+  const proof = await prisma.paymentProof.create({
+    data: {
+      receiptId: parseInt(req.params.id),
+      filePath: req.file.path,
+      status: "RECEIVED",
+    },
+  });
+
+  await prisma.returnedReceipt.update({
+    where: { id: parseInt(req.params.id) },
+    data: { status: "PROOF_RECEIVED", proofReceivedAt: new Date() },
+  });
+
+  await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id));
+  res.status(201).json(proof);
 });
 
 export default router;

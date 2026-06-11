@@ -39,15 +39,9 @@ export default function ClientForm() {
           <label className="block text-sm font-medium mb-1">NIF/CIF</label>
           <input className="w-full border rounded px-3 py-2" value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Telèfon</label>
-            <input className="w-full border rounded px-3 py-2" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">WhatsApp</label>
-            <input className="w-full border rounded px-3 py-2" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} />
-          </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">WhatsApp</label>
+          <input className="w-full border rounded px-3 py-2" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="34600111222" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Email</label>

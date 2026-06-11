@@ -8,21 +8,53 @@ export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sortKey, setSortKey] = useState<string>("returnDate");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(filters));
 
   useEffect(() => { reload(); }, [filters]);
 
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
-    if (!search.trim()) return receipts.data;
-    const q = search.toLowerCase();
-    return receipts.data.filter((r: any) =>
-      (r.client?.name && r.client.name.toLowerCase().includes(q)) ||
-      (r.receiptReference && r.receiptReference.toLowerCase().includes(q)) ||
-      (r.notes && r.notes.toLowerCase().includes(q)) ||
-      (r.returnReason && r.returnReason.toLowerCase().includes(q))
-    );
-  }, [receipts, search]);
+    let list = receipts.data;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((r: any) =>
+        (r.client?.name && r.client.name.toLowerCase().includes(q)) ||
+        (r.receiptReference && r.receiptReference.toLowerCase().includes(q)) ||
+        (r.notes && r.notes.toLowerCase().includes(q)) ||
+        (r.returnReason && r.returnReason.toLowerCase().includes(q))
+      );
+    }
+    // Sort
+    return [...list].sort((a: any, b: any) => {
+      let va: any, vb: any;
+      switch (sortKey) {
+        case "returnDate": va = new Date(a.returnDate).getTime(); vb = new Date(b.returnDate).getTime(); break;
+        case "client": va = (a.client?.name || "").toLowerCase(); vb = (b.client?.name || "").toLowerCase(); break;
+        case "reference": va = a.receiptReference || ""; vb = b.receiptReference || ""; break;
+        case "returnReason": va = a.returnReason || ""; vb = b.returnReason || ""; break;
+        case "servicePeriod": va = a.servicePeriod || ""; vb = b.servicePeriod || ""; break;
+        case "amount": va = a.returnedAmount; vb = b.returnedAmount; break;
+        case "status": va = a.status; vb = b.status; break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [receipts, search, sortKey, sortDir]);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const SortHead = ({ col, label }: { col: string; label: string }) => (
+    <th className="text-left p-3 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort(col)}>
+      {label} {sortKey === col ? (sortDir === "asc" ? "▲" : "▼") : ""}
+    </th>
+  );
 
   const toggle = (id: number) => {
     const next = new Set(selected);
@@ -89,14 +121,14 @@ export default function ReturnedReceiptsList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
-              <th className="text-left p-3">Data dev.</th>
-              <th className="text-left p-3">Client</th>
+              <SortHead col="returnDate" label="Data dev." />
+              <SortHead col="client" label="Client" />
               <th className="text-left p-3">Núm. Factura</th>
-              <th className="text-left p-3">Motiu</th>
-              <th className="text-left p-3">Període</th>
+              <SortHead col="returnReason" label="Motiu" />
+              <SortHead col="servicePeriod" label="Període" />
               <th className="text-left p-3">Data emissió</th>
-              <th className="text-right p-3">Import</th>
-              <th className="text-left p-3">Estat</th>
+              <SortHead col="amount" label="Import" />
+              <SortHead col="status" label="Estat" />
               <th className="text-left p-3">Agent</th>
               <th className="text-right p-3">Accions</th>
             </tr>

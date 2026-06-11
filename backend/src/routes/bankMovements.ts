@@ -183,7 +183,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
           continue;
         }
       }
-      // 2. Client name extraction (simplified)
+      // 2. Client name extraction
       const nameMatch = concept.match(/(?:DEV\.?\s*REBUT|DEVOLUCI[OÓ]\s*(?:REBUT)?|DEV\s+REBUT)\s+(.+)/i);
       let found = false;
       if (nameMatch) {
@@ -198,6 +198,15 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
           const allInA = partsA.every((pa: string) => partsB.some((pb: string) => pb.includes(pa) || pa.includes(pb)));
           if (allInB && allInA && 0.9 > bestScore) { bestScore = 0.9; bestClient = cl; }
           else if ((allInB || allInA) && 0.7 > bestScore) { bestScore = 0.7; bestClient = cl; }
+          // Word-level matching
+          let matched = 0;
+          const total = Math.max(partsA.length, partsB.length);
+          for (const pa of partsA) {
+            if (pa.length < 3) continue;
+            if (partsB.some((pb: string) => pb.includes(pa) || pa.includes(pb))) matched++;
+          }
+          const wordScore = matched > 0 ? (matched / total) * 0.8 : 0;
+          if (wordScore > bestScore) { bestScore = wordScore; bestClient = cl; }
         }
         if (bestClient && bestScore >= 0.7) {
           const status = hasWhatsApp(bestClient) ? "EMPARELLAT" : "REVISAR";

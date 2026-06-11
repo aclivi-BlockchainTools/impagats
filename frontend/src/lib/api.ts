@@ -64,6 +64,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
+  deleteReturnedReceipt: (id: number) => request<void>(`/returned-receipts/${id}`, { method: "DELETE" }),
 
   // Messages
   getMessages: (receiptId?: number) => request<any[]>(`/messages${receiptId ? `?receiptId=${receiptId}` : ""}`),

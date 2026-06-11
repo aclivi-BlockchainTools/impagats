@@ -10,6 +10,16 @@ export default function ReturnedReceiptsList() {
 
   useEffect(() => { reload(); }, [filters]);
 
+  const handleDelete = async (id: number) => {
+    if (!confirm("Segur que vols eliminar aquest impagat?")) return;
+    try {
+      await api.deleteReturnedReceipt(id);
+      reload();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
@@ -87,8 +97,9 @@ export default function ReturnedReceiptsList() {
                     <span className="text-gray-400 text-xs">-</span>
                   )}
                 </td>
-                <td className="p-3 text-right">
+                <td className="p-3 text-right space-x-2">
                   <Link to={`/receipts/${r.id}`} className="text-blue-600 hover:underline">Detall</Link>
+                  <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:underline">Eliminar</button>
                 </td>
               </tr>
             ))}

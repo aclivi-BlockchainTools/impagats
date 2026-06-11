@@ -226,4 +226,15 @@ router.post("/:id/reply", async (req: Request, res: Response) => {
   res.json({ success: true, message });
 });
 
+router.delete("/:id", async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  // Delete related records first
+  await prisma.message.deleteMany({ where: { receiptId: id } });
+  await prisma.paymentProof.deleteMany({ where: { receiptId: id } });
+  await prisma.reconciliationMatch.deleteMany({ where: { receiptId: id } });
+  await prisma.returnedReceipt.delete({ where: { id } });
+  await auditLog("DELETE", "ReturnedReceipt", id);
+  res.status(204).send();
+});
+
 export default router;

@@ -88,12 +88,15 @@ Si necessites que detalli la implementació d’algun pas concret, digues-m’ho
 
 ## Estat
 
-Implementat: sí
-Verificat: sí
-Completat: sí
+Implementat: no
+Verificat: no
+Completat: no
 
 ## Notes
 
+- 2026-06-11 05:53: 2 commits:
+1. feat: 39 files, traducció estats català, transacció CSV, paginació, tests, logging, WhatsApp-aware matching
+2. docs: CLAUDE.md actualitzat amb noves features, decisions, estructura de fitxers → Implementat:no Verificat:no Completat:no
 - 2026-06-10 19:14: 7 millores implementades i verificades. Backend/frontend compilen, 19 tests passen, health endpoint OK.
 - 2026-06-10 19:14: Implementades 7 millores:
 

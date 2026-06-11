@@ -44,6 +44,7 @@ export default function ReturnedReceiptsList() {
               <th className="text-left p-3">Data emissió</th>
               <th className="text-right p-3">Import</th>
               <th className="text-left p-3">Estat</th>
+              <th className="text-left p-3">Agent</th>
               <th className="text-right p-3">Accions</th>
             </tr>
           </thead>
@@ -57,14 +58,43 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3 text-sm">{r.bankMovement?.rawData?.Valor || "-"}</td>
                 <td className="p-3 text-right">{r.returnedAmount.toFixed(2)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>
+                <td className="p-3">
+                  {r.status === "NOTIFICAT" && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                      <span className="text-green-700 text-xs">actiu</span>
+                    </span>
+                  )}
+                  {r.status === "ESPERANT_DETALLS" && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" />
+                      <span className="text-yellow-700 text-xs">pendent</span>
+                    </span>
+                  )}
+                  {r.status === "JUSTIFICANT_REBUT" && r.notes?.includes("[Agent:") && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                      <span className="text-green-700 text-xs">respost</span>
+                    </span>
+                  )}
+                  {r.notes?.includes("altres_temes → redirigir") && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
+                      <span className="text-red-700 text-xs">tancat</span>
+                    </span>
+                  )}
+                  {!["NOTIFICAT", "ESPERANT_DETALLS", "JUSTIFICANT_REBUT"].includes(r.status) && !r.notes?.includes("[Agent:") && (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
                 <td className="p-3 text-right">
                   <Link to={`/receipts/${r.id}`} className="text-blue-600 hover:underline">Detall</Link>
                 </td>
               </tr>
             ))}
-            {(!receipts?.data || receipts.data.length === 0) && <tr><td colSpan={8} className="p-3 text-center text-gray-500">Cap impagat</td></tr>}
+            {(!receipts?.data || receipts.data.length === 0) && <tr><td colSpan={9} className="p-3 text-center text-gray-500">Cap impagat</td></tr>}
             {receipts && (
-              <tr><td colSpan={8} className="p-3 text-right text-sm text-gray-500">
+              <tr><td colSpan={9} className="p-3 text-right text-sm text-gray-500">
                 Mostrant {receipts.data?.length || 0} de {receipts.total} — Pàg {receipts.page}
               </td></tr>
             )}

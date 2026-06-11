@@ -32,13 +32,13 @@ const DEFAULT_KEYWORDS: Record<string, Record<string, string>> = {
 };
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
-  resposta_pagament_clar:
+  template_pagament_clar:
     "Gràcies {{client_name}}. He registrat la teva confirmació{{#reference}} amb referència {{reference}}{{/reference}}. Si ens pots enviar el comprovant del pagament, ens ajudaria a verificar-lo. Per a qualsevol altra consulta, contacta amb nosaltres per les vies habituals.",
-  resposta_pagament_ambigu:
+  template_pagament_ambigu:
     "Gràcies per respondre. Em pots confirmar la data o referència del pagament per poder-ho registrar correctament? Recorda que aquest és un sistema automàtic — per a qualsevol altra consulta, contacta amb nosaltres per les vies habituals.",
-  resposta_comprovant_rebut:
+  template_comprovant_rebut:
     "Gràcies {{client_name}}. He rebut el teu comprovant i el revisarem en breu. Si tot és correcte, confirmarem el pagament. Per a qualsevol altra consulta, contacta amb nosaltres per les vies habituals.",
-  resposta_redireccio:
+  template_redireccio:
     "Aquest és un sistema automàtic de confirmació de pagaments. Per a qualsevol altra consulta o aclariment, contacta amb nosaltres per les vies de comunicació habituals. Gràcies.",
 };
 
@@ -103,7 +103,7 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
     return {
       intent: "comprovant_enviat",
       action: "acusar_recepcio_comprovant",
-      templateKey: "resposta_comprovant_rebut",
+      templateKey: "template_comprovant_rebut",
       metadata: { reference: extractReference(normalized), amount: extractAmount(normalized), date: extractDate(normalized) },
     };
   }
@@ -113,7 +113,7 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
     return {
       intent: "pagament_clar",
       action: "confirmar_i_demanar_comprovant",
-      templateKey: "resposta_pagament_clar",
+      templateKey: "template_pagament_clar",
       metadata: { reference: extractReference(normalized), amount: extractAmount(normalized), date: extractDate(normalized) },
     };
   }
@@ -123,7 +123,7 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
     return {
       intent: "comprovant_enviat",
       action: "acusar_recepcio_comprovant",
-      templateKey: "resposta_comprovant_rebut",
+      templateKey: "template_comprovant_rebut",
       metadata: { reference: extractReference(normalized), amount: extractAmount(normalized), date: extractDate(normalized) },
     };
   }
@@ -133,7 +133,7 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
     return {
       intent: "pagament_ambigu",
       action: "demanar_detalls",
-      templateKey: "resposta_pagament_ambigu",
+      templateKey: "template_pagament_ambigu",
       metadata: { reference: null, amount: null, date: null },
     };
   }
@@ -142,7 +142,7 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
   return {
     intent: "altres_temes",
     action: "redirigir",
-    templateKey: "resposta_redireccio",
+    templateKey: "template_redireccio",
     metadata: {},
   };
 }

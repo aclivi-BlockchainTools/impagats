@@ -1,4 +1,5 @@
 import { parse } from "csv-parse/sync";
+import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
 
 interface CsvRow {
@@ -19,7 +20,7 @@ function findColumn(row: CsvRow, aliases: string[]): string | undefined {
   const keys = Object.keys(row);
   for (const a of aliases) {
     const match = keys.find((k) => k.toLowerCase().trim() === a.toLowerCase());
-    if (match) return match; // Return actual key, not alias
+    if (match) return match;
   }
   return undefined;
 }
@@ -43,7 +44,6 @@ function skipMetadataRows(content: string): string {
 
 function parseDate(val: string | undefined): Date | null {
   if (!val) return null;
-  // Try DD/MM/YY or DD/MM/YYYY (Catalan/Spanish format)
   const dmyMatch = val.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
   if (dmyMatch) {
     const day = parseInt(dmyMatch[1]);
@@ -55,48 +55,47 @@ function parseDate(val: string | undefined): Date | null {
       return dt;
     }
   }
-  // Fallback to native JS parsing
   const dt = new Date(val);
   return isNaN(dt.getTime()) ? null : dt;
 }
 
 function parseAmount(val: string | undefined): number {
   if (!val) return 0;
-  // Detect format: if comma is last non-digit char, it's decimal (ES/CA: 1.234,56)
-  // Otherwise dot is decimal (EN: 1,234.56 or plain 200.00)
   const hasComma = val.includes(",");
   const hasDot = val.includes(".");
   let cleaned = val;
   if (hasComma && hasDot) {
-    // Both present: last occurrence determines decimal separator
     const lastComma = val.lastIndexOf(",");
     const lastDot = val.lastIndexOf(".");
     if (lastComma > lastDot) {
-      // Comma is decimal: 1.234,56
       cleaned = val.replace(/\./g, "").replace(",", ".");
     } else {
-      // Dot is decimal: 1,234.56
       cleaned = val.replace(/,/g, "");
     }
   } else if (hasComma) {
-    // Only comma: could be decimal or thousands. Check position.
     const commaPos = val.lastIndexOf(",");
     const afterComma = val.substring(commaPos + 1);
     if (afterComma.length <= 2 && commaPos > 0) {
-      // Likely decimal: 1234,56
       cleaned = val.replace(",", ".");
     } else {
-      // Likely thousands: 1234 (no decimals) or 1,234,567
       cleaned = val.replace(/,/g, "");
     }
   }
-  // If only dots, they're already decimal separators (or thousands in ES, but we default to EN)
   return parseFloat(cleaned) || 0;
 }
 
+// Import from file path (standalone call)
 export async function importCsv(filePath: string): Promise<{ imported: number; skipped: number }> {
   const fs = await import("fs");
   let content = fs.readFileSync(filePath, "utf-8");
+  return importCsvContent(content);
+}
+
+// Import from CSV content with optional transaction
+export async function importCsvContent(
+  content: string,
+  tx: TxClient = prisma,
+): Promise<{ imported: number; skipped: number }> {
   content = skipMetadataRows(content);
   const rows: CsvRow[] = parse(content, {
     columns: true,
@@ -126,7 +125,7 @@ export async function importCsv(filePath: string): Promise<{ imported: number; s
       continue;
     }
 
-    await prisma.bankMovement.create({
+    await tx.bankMovement.create({
       data: {
         rawData: row as any,
         concept,

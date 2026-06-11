@@ -1,12 +1,13 @@
+import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
 
-export async function reconcileNewMovements(): Promise<number> {
-  const openReceipts = await prisma.returnedReceipt.findMany({
+export async function reconcileNewMovements(tx: TxClient = prisma): Promise<number> {
+  const openReceipts = await tx.returnedReceipt.findMany({
     where: { status: { in: ["NOTIFICAT", "JUSTIFICANT_REBUT"] } },
     include: { client: true },
   });
 
-  const unreconciledMovements = await prisma.bankMovement.findMany({
+  const unreconciledMovements = await tx.bankMovement.findMany({
     where: {
       amount: { gt: 0 },
       isReturn: false,
@@ -23,10 +24,8 @@ export async function reconcileNewMovements(): Promise<number> {
       const maxAmount = receipt.returnedAmount * (1 + amountTolerance);
 
       if (mv.amount >= minAmount && mv.amount <= maxAmount) {
-        // Match by amount
         let confidence = 0.6;
 
-        // If client exists, try name matching in concept
         if (receipt.client && mv.concept) {
           const nameParts = receipt.client.name.toLowerCase().split(" ");
           const conceptLow = mv.concept.toLowerCase();
@@ -34,10 +33,9 @@ export async function reconcileNewMovements(): Promise<number> {
           if (nameMatch) confidence = 0.9;
         }
 
-        // Always create reconciliation match, with appropriate confidence/status
         const isHighConfidence = confidence >= 0.8;
 
-        await prisma.reconciliationMatch.create({
+        await tx.reconciliationMatch.create({
           data: {
             receiptId: receipt.id,
             bankMovementId: mv.id,
@@ -46,7 +44,7 @@ export async function reconcileNewMovements(): Promise<number> {
           },
         });
 
-        await prisma.returnedReceipt.update({
+        await tx.returnedReceipt.update({
           where: { id: receipt.id },
           data: isHighConfidence
             ? { status: "PAGAMENT_CONFIRMAT", paymentConfirmedAt: new Date() }
@@ -54,7 +52,7 @@ export async function reconcileNewMovements(): Promise<number> {
         });
 
         matched++;
-        break; // One movement matches one receipt
+        break;
       }
     }
   }

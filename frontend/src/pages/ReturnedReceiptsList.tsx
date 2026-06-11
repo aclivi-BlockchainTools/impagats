@@ -8,6 +8,7 @@ export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sending, setSending] = useState(false);
   const [sortKey, setSortKey] = useState<string>("returnDate");
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(filters));
@@ -85,6 +86,31 @@ export default function ReturnedReceiptsList() {
     reload();
   };
 
+  // Check if all selected are from the same client
+  const selectedReceipts = filtered.filter((r: any) => selected.has(r.id));
+  const sameClient = selected.size >= 2 && new Set(selectedReceipts.map((r: any) => r.clientId)).size === 1;
+  const canSend = sameClient && selectedReceipts.every((r: any) =>
+    ["DETECTAT", "EMPARELLAT", "REVISAR", "NOTIFICAT"].includes(r.status)
+  );
+
+  const handleBulkWhatsApp = async () => {
+    if (!sameClient) return;
+    setSending(true);
+    try {
+      const result = await api.sendBulkWhatsApp([...selected]);
+      if (result.success) {
+        alert(`WhatsApp enviat a ${selectedReceipts[0].client?.name}. ${selected.size} rebuts notificats.`);
+        setSelected(new Set());
+        reload();
+      } else {
+        alert("Error: " + result.error);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setSending(false);
+  };
+
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
@@ -94,9 +120,21 @@ export default function ReturnedReceiptsList() {
         <h1 className="text-2xl font-bold">Impagats</h1>
         <div className="flex gap-2">
           {selected.size > 0 && (
-            <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">
-              Eliminar ({selected.size})
-            </button>
+            <>
+              <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">
+                Eliminar ({selected.size})
+              </button>
+              {selected.size >= 2 && (
+                <button
+                  onClick={handleBulkWhatsApp}
+                  disabled={!canSend || sending}
+                  title={!sameClient ? "Tots els impagats han de ser del mateix client" : !canSend ? "Els impagats han d'estar en estat DETECTAT, EMPARELLAT, REVISAR o NOTIFICAT" : ""}
+                  className="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm"
+                >
+                  {sending ? "Enviant..." : `WhatsApp (${selected.size})`}
+                </button>
+              )}
+            </>
           )}
           <Link to="/receipts/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Nou impagat</Link>
         </div>

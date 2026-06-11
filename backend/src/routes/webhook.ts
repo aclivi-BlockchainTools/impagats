@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { config } from "../lib/config";
 import { logger } from "../lib/logger";
+import { asyncHandler } from "../middleware/errorHandler";
 import { openwa } from "../connectors/OpenWAConnector";
 import { handleIncomingMessage, checkConversationTimeout } from "../services/conversationAgent";
 import path from "path";
@@ -10,9 +11,9 @@ import crypto from "crypto";
 
 const router = Router();
 
-router.post("/", async (req: Request, res: Response) => {
-  // Verify webhook secret
-  if (req.query.secret !== config.webhookSecret) {
+router.post("/", asyncHandler(async (req: Request, res: Response) => {
+  // Verify webhook secret if configured
+  if (config.webhookSecret && req.query.secret !== config.webhookSecret) {
     return res.status(403).json({ error: "Accés no autoritzat" });
   }
 
@@ -28,7 +29,6 @@ router.post("/", async (req: Request, res: Response) => {
 
   if (!client) return res.status(200).json({ status: "ignored" });
 
-  // Find open receipts for this client
   const openReceipt = await prisma.returnedReceipt.findFirst({
     where: {
       clientId: client.id,
@@ -53,7 +53,13 @@ router.post("/", async (req: Request, res: Response) => {
 
   if (agentEligible) {
     try {
-      // Check for timeout on ESPERANT_DETALLS
+      // Check if agent is globally enabled
+      const agentEnabledSetting = await prisma.appSettings.findFirst({ where: { key: "agent.enabled" } });
+      if (agentEnabledSetting?.value === "false") {
+        logger.info({ receiptId: openReceipt.id }, "Agent desactivat");
+        return res.status(200).json({ status: "agent_disabled" });
+      }
+
       if (openReceipt.status === "ESPERANT_DETALLS") {
         const timedOut = await checkConversationTimeout(openReceipt.id);
         if (timedOut) {
@@ -70,10 +76,8 @@ router.post("/", async (req: Request, res: Response) => {
         client.name,
       );
 
-      // Send agent response via WhatsApp
       await openwa.sendMessage(cleanPhone, result.replyText);
 
-      // Save agent message
       await prisma.message.create({
         data: {
           receiptId: openReceipt.id,
@@ -86,13 +90,13 @@ router.post("/", async (req: Request, res: Response) => {
         },
       });
 
-      // Update receipt status if needed
       const updateData: any = {};
       if (result.receiptNewStatus) {
         updateData.status = result.receiptNewStatus;
-        updateData.proofReceivedAt = new Date();
+        if (result.intent === "pagament_clar" || result.intent === "comprovant_enviat") {
+          updateData.proofReceivedAt = new Date();
+        }
       }
-      // Track conversation state in notes
       const currentNotes = openReceipt.notes || "";
       const conversationNote = `[Agent: ${result.intent} → ${result.action}]`;
       updateData.notes = currentNotes ? `${currentNotes} ${conversationNote}` : conversationNote;
@@ -102,8 +106,33 @@ router.post("/", async (req: Request, res: Response) => {
         data: updateData,
       });
     } catch (err) {
-      logger.error({ err, receiptId: openReceipt.id }, "Agent error");
-      // Don't block — the message was already saved
+      logger.error({ err, receiptId: openReceipt.id }, "Agent error - notificant al client que contacti per vies habituals");
+      // Even on error, try to send a fallback message so the debtor isn't ignored
+      try {
+        const fallbackText = "Gràcies per contactar-nos. Hem tingut un problema tècnic processant el teu missatge. Si us plau, contacta amb nosaltres per les vies de comunicació habituals. Disculpa les molèsties.";
+        await openwa.sendMessage(cleanPhone, fallbackText);
+        await prisma.message.create({
+          data: {
+            receiptId: openReceipt.id,
+            direction: "OUTBOUND",
+            content: fallbackText,
+            agentIntent: "altres_temes",
+            agentAction: "error_fallback",
+            needsReview: true,
+          },
+        });
+        // Mark receipt as REVISAR so user sees there's an issue
+        const currentNotes = openReceipt.notes || "";
+        await prisma.returnedReceipt.update({
+          where: { id: openReceipt.id },
+          data: {
+            status: "REVISAR",
+            notes: currentNotes ? `${currentNotes} [Agent error]` : "[Agent error]",
+          },
+        });
+      } catch (fallbackErr) {
+        logger.error({ fallbackErr, receiptId: openReceipt.id }, "Even fallback message failed");
+      }
     }
   }
 
@@ -147,6 +176,6 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   res.status(200).json({ status: "ok" });
-});
+}));
 
 export default router;

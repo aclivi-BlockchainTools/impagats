@@ -57,6 +57,7 @@ export const api = {
   updateReturnedReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   matchReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}/match`, { method: "POST", body: JSON.stringify(data) }),
   sendWhatsApp: (id: number) => request<any>(`/returned-receipts/${id}/send-whatsapp`, { method: "POST" }),
+  sendBulkWhatsApp: (receiptIds: number[]) => request<any>("/returned-receipts/send-bulk-whatsapp", { method: "POST", body: JSON.stringify({ receiptIds }) }),
   uploadProof: (id: number, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -69,10 +70,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
+  simulateAgent: (receiptId: number, text: string, hasMedia?: boolean) =>
+    request<any>(`/returned-receipts/${receiptId}/simulate-agent`, {
+      method: "POST",
+      body: JSON.stringify({ text, hasMedia }),
+    }),
   deleteReturnedReceipt: (id: number) => request<void>(`/returned-receipts/${id}`, { method: "DELETE" }),
 
   // Messages
   getMessages: (receiptId?: number) => request<any[]>(`/messages${receiptId ? `?receiptId=${receiptId}` : ""}`),
+
+  // Dashboard debtors
+  getDashboardDebtors: () => request<any[]>("/dashboard/debtors"),
 
   // Settings
   getSettings: () => request<Record<string, string>>("/settings"),

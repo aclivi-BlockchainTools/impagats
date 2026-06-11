@@ -1,3 +1,4 @@
+import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
 
 const DEFAULT_KEYWORDS = [
@@ -11,14 +12,11 @@ const MONTHS_CA = [
   "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre",
 ];
 
-// Extract valor date from rawData and compute service period (month before)
 function extractServiceInfo(rawData: any): { valorDate: Date | null; servicePeriod: string | null } {
   if (!rawData || typeof rawData !== "object") return { valorDate: null, servicePeriod: null };
-  // Look for Valor/valor column in rawData
   const rawValor = rawData.Valor || rawData.valor || rawData.VALOR;
   if (!rawValor) return { valorDate: null, servicePeriod: null };
 
-  // Parse DD/MM/YY or DD/MM/YYYY
   const dmyMatch = String(rawValor).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
   if (!dmyMatch) return { valorDate: null, servicePeriod: null };
 
@@ -30,8 +28,7 @@ function extractServiceInfo(rawData: any): { valorDate: Date | null; servicePeri
   const valorDate = new Date(year, month - 1, day);
   if (isNaN(valorDate.getTime())) return { valorDate: null, servicePeriod: null };
 
-  // Service is the month before valor date
-  const serviceMonth = month - 1; // 1-indexed
+  const serviceMonth = month - 1;
   const serviceYear = serviceMonth < 1 ? year - 1 : year;
   const serviceMonthFixed = serviceMonth < 1 ? 12 : serviceMonth;
 
@@ -41,14 +38,14 @@ function extractServiceInfo(rawData: any): { valorDate: Date | null; servicePeri
   };
 }
 
-export async function detectReturns(): Promise<number> {
-  const settings = await prisma.appSettings.findMany();
+export async function detectReturns(tx: TxClient = prisma): Promise<number> {
+  const settings = await tx.appSettings.findMany();
   const keywordsSetting = settings.find((s) => s.key === "return_keywords");
   const keywords = keywordsSetting
     ? keywordsSetting.value.split(",").map((k) => k.trim().toLowerCase())
     : DEFAULT_KEYWORDS;
 
-  const movements = await prisma.bankMovement.findMany({
+  const movements = await tx.bankMovement.findMany({
     where: { isReturn: false },
   });
 
@@ -61,12 +58,12 @@ export async function detectReturns(): Promise<number> {
     const keywordMatch = keywords.some((kw) => concept.includes(kw));
 
     if (keywordMatch && isNegative) {
-      await prisma.bankMovement.update({
+      await tx.bankMovement.update({
         where: { id: mv.id },
         data: { isReturn: true },
       });
 
-      const existing = await prisma.returnedReceipt.findFirst({
+      const existing = await tx.returnedReceipt.findFirst({
         where: { bankMovementId: mv.id },
       });
 
@@ -74,7 +71,7 @@ export async function detectReturns(): Promise<number> {
         const { servicePeriod } = extractServiceInfo(mv.rawData);
         const ref = mv.reference || concept.replace(/\s+/g, " ").trim();
 
-        await prisma.returnedReceipt.create({
+        await tx.returnedReceipt.create({
           data: {
             bankMovementId: mv.id,
             returnedAmount: Math.abs(mv.amount),

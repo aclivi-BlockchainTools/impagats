@@ -5,7 +5,7 @@ import StatsCard from "../components/StatsCard";
 
 export default function Dashboard() {
   const { data, loading, error } = useApi(() => api.getDashboard());
-  const { data: debtors } = useApi(() => fetch("/api/dashboard/debtors").then((r) => r.json()));
+  const { data: debtors } = useApi(() => api.getDashboardDebtors());
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;

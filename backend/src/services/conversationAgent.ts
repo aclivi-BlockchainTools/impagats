@@ -148,17 +148,22 @@ export function classifyMessage(text: string, keywords: KeywordConfig, hasMedia:
 }
 
 function extractReference(text: string): string | null {
-  const m = text.match(/(?:ref[erencia]*|referència|referencia)[\s:]*[#nº]*\s*(\w+)/i);
+  // Match: ref 12345, ref. 12345, referencia 12345, ref: 12345, #12345, nº 12345
+  const m = text.match(/(?:ref[erencia]*|referència|referencia)[\s.:]*[#nº]*\s*(\w+)/i)
+    || text.match(/[#nº]\s*(\d{4,})/i);
   return m ? m[1] : null;
 }
 
 function extractAmount(text: string): string | null {
-  const m = text.match(/(\d+[,.]?\d*)\s*(?:€|euros?)/i);
+  // Match: 45,50€, 45.50 €, 45 euros, 45€
+  const m = text.match(/(\d+[,.]?\d{0,2})\s*(?:€|euros?)/i);
   return m ? m[1].replace(",", ".") : null;
 }
 
 function extractDate(text: string): string | null {
-  const m = text.match(/(?:ahir|avui|el dia|el)\s*(\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?)/i);
+  // Match: ahir, avui, el dia 15/03, 15/03/2026, el 15/03
+  const m = text.match(/(?:ahir|avui|el dia|el)\s*(\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?)/i)
+    || text.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i);
   return m ? m[1] : null;
 }
 
@@ -182,6 +187,10 @@ export async function handleIncomingMessage(
   let receiptNewStatus: string | null = null;
   if (classification.intent === "pagament_clar" || classification.intent === "comprovant_enviat") {
     receiptNewStatus = "JUSTIFICANT_REBUT";
+  } else if (classification.intent === "pagament_ambigu") {
+    receiptNewStatus = "ESPERANT_DETALLS";
+  } else if (classification.intent === "altres_temes") {
+    receiptNewStatus = "REVISAR";
   }
 
   return {
@@ -210,5 +219,22 @@ export async function checkConversationTimeout(receiptId: number): Promise<boole
   if (!lastAgentMessage) return false;
 
   const elapsed = Date.now() - lastAgentMessage.sentAt.getTime();
-  return elapsed > timeoutHours * 60 * 60 * 1000;
+  const timedOut = elapsed > timeoutHours * 60 * 60 * 1000;
+
+  // Update receipt to REVISAR when timeout so user gets notified
+  if (timedOut) {
+    const receipt = await prisma.returnedReceipt.findUnique({ where: { id: receiptId } });
+    if (receipt && receipt.status === "ESPERANT_DETALLS") {
+      const currentNotes = receipt.notes || "";
+      await prisma.returnedReceipt.update({
+        where: { id: receiptId },
+        data: {
+          status: "REVISAR",
+          notes: currentNotes ? `${currentNotes} [Timeout agent]` : "[Timeout agent]",
+        },
+      });
+    }
+  }
+
+  return timedOut;
 }

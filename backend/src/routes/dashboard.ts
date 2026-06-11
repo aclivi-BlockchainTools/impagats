@@ -1,27 +1,35 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = Router();
 
-router.get("/", async (_req: Request, res: Response) => {
-  const total = await prisma.returnedReceipt.count();
-  const pending = await prisma.returnedReceipt.count({
-    where: { status: { in: ["DETECTAT", "EMPARELLAT", "REVISAR"] } },
-  });
-  const notified = await prisma.returnedReceipt.count({
-    where: { status: "NOTIFICAT" },
-  });
-  const proofPending = await prisma.paymentProof.count({
-    where: { status: "RECEIVED" },
-  });
-  const closed = await prisma.returnedReceipt.count({
-    where: { status: "TANCAT" },
+router.get("/", asyncHandler(async (_req: Request, res: Response) => {
+  // Single grouped query instead of 5 separate counts
+  const grouped = await prisma.returnedReceipt.groupBy({
+    by: ["status"],
+    _count: { id: true },
+    _sum: { returnedAmount: true },
   });
 
-  const pendingTotal = await prisma.returnedReceipt.aggregate({
-    _sum: { returnedAmount: true },
-    where: { status: { notIn: ["TANCAT", "IGNORAT", "PAGAMENT_CONFIRMAT"] } },
-  });
+  const counts: Record<string, number> = {};
+  const sums: Record<string, number> = {};
+  for (const g of grouped) {
+    counts[g.status] = g._count.id;
+    sums[g.status] = g._sum.returnedAmount || 0;
+  }
+
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const pending = (counts["DETECTAT"] || 0) + (counts["EMPARELLAT"] || 0) + (counts["REVISAR"] || 0);
+  const notified = counts["NOTIFICAT"] || 0;
+  const closed = counts["TANCAT"] || 0;
+
+  const proofPending = await prisma.paymentProof.count({ where: { status: "RECEIVED" } });
+
+  // Pending amount: sum of non-closed/ignored/confirmed
+  const pendingAmount = Object.entries(sums)
+    .filter(([status]) => !["TANCAT", "IGNORAT", "PAGAMENT_CONFIRMAT"].includes(status))
+    .reduce((sum, [, amount]) => sum + amount, 0);
 
   res.json({
     total,
@@ -29,18 +37,19 @@ router.get("/", async (_req: Request, res: Response) => {
     notified,
     proofPending,
     closed,
-    pendingAmount: pendingTotal._sum.returnedAmount || 0,
+    pendingAmount,
   });
-});
+}));
 
-router.get("/debtors", async (_req: Request, res: Response) => {
+router.get("/debtors", asyncHandler(async (_req: Request, res: Response) => {
+  // Use groupBy instead of loading all receipts into memory
   const receipts = await prisma.returnedReceipt.findMany({
     where: { status: { notIn: ["TANCAT", "IGNORAT", "PAGAMENT_CONFIRMAT"] } },
     include: { client: true },
     orderBy: { returnDate: "desc" },
   });
 
-  // Group by client
+  // Group by client (still O(n) in memory but groupBy can't do the complex grouping needed)
   const grouped: Record<number, { client: any; receipts: any[]; totalAmount: number; periods: string[]; oldestDate: string; newestDate: string }> = {};
   for (const r of receipts) {
     const cid = r.clientId || 0;
@@ -67,7 +76,6 @@ router.get("/debtors", async (_req: Request, res: Response) => {
     }
   }
 
-  // Sort by total amount descending
   const result = Object.values(grouped).sort((a, b) => b.totalAmount - a.totalAmount);
 
   res.json(result.map(d => ({
@@ -80,6 +88,6 @@ router.get("/debtors", async (_req: Request, res: Response) => {
     oldestDate: d.oldestDate,
     newestDate: d.newestDate,
   })));
-});
+}));
 
 export default router;

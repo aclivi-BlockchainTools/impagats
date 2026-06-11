@@ -153,6 +153,26 @@ function parseBlock(block: string): SepaTransaction | null {
   };
 }
 
+// SEPA rejection code meanings
+const REJECTION_MEANINGS: Record<string, string> = {
+  "AC01": "IBAN incorrecte",
+  "AC04": "Compte tancat",
+  "AC06": "Compte bloquejat",
+  "AG01": "Transacció no permesa",
+  "AM04": "Fons insuficients",
+  "MD01": "Mandat no trobat",
+  "MD02": "Mandat incorrecte",
+  "MD06": "Deutor reclama",
+  "MS02": "No autoritzat pel deutor",
+  "MS03": "No autoritzat",
+  "RC01": "IBAN no correcte",
+};
+
+function rejectionLabel(code: string): string {
+  const meaning = REJECTION_MEANINGS[code];
+  return meaning ? `${code} - ${meaning}` : code;
+}
+
 // Compute service period from collection date (month before)
 function computeServicePeriod(date: Date): string {
   const monthNames = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
@@ -219,7 +239,7 @@ export async function importSepaXml(xmlContent: string): Promise<{
         bankMovementId: movement.id,
         returnedAmount: tx.amount,
         returnDate: tx.collectionDate,
-        returnReason: tx.rejectionCode,
+        returnReason: rejectionLabel(tx.rejectionCode),
         receiptReference: tx.invoiceNumber || tx.endToEndId,
         notes: notes || null,
         servicePeriod: servicePeriod || null,

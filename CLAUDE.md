@@ -110,12 +110,13 @@ impagats/
 
 ### Estats de ReturnedReceipt
 `DETECTAT → EMPARELLAT → NOTIFICAT → JUSTIFICANT_REBUT → PAGAMENT_CONFIRMAT → TANCAT`
-(+ `REVISAR`, `IGNORAT`)
+(+ `REVISAR`, `IGNORAT`, `ESPERANT_DETALLS`)
 
 - **DETECTAT**: devolució trobada al CSV, pendent de matching
 - **EMPARELLAT**: client amb WhatsApp confirmat, llest per enviar missatge
-- **REVISAR**: cal revisió manual (auto-creat, sense WhatsApp, o match baix)
+- **REVISAR**: cal revisió manual (auto-creat, sense WhatsApp, match baix, timeout agent, error agent)
 - **NOTIFICAT**: WhatsApp enviat
+- **ESPERANT_DETALLS**: agent ha demanat més dades (resposta ambigua), esperant resposta del deutor
 - **JUSTIFICANT_REBUT**: client ha respost amb comprovant
 - **PAGAMENT_CONFIRMAT**: transferència rebuda i conciliada
 - **TANCAT**: tancat manualment
@@ -136,7 +137,9 @@ impagats/
 | `/api/returned-receipts/:id/match` | POST (manual match) |
 | `/api/returned-receipts/:id/send-whatsapp` | POST |
 | `/api/returned-receipts/:id/reply` | POST (resposta manual, desactiva agent) |
+| `/api/returned-receipts/:id/simulate-agent` | POST (provar agent sense enviar) |
 | `/api/returned-receipts/:id/proof` | POST (upload fitxer) |
+| `/api/returned-receipts/send-bulk-whatsapp` | POST (missatge resum per N impagats del mateix client) |
 | `/api/returned-receipts/:id` | DELETE (esborra receipt + messages + proofs + matches) |
 | `/api/messages` | GET (?receiptId=) |
 | `/api/settings` | GET, PUT |
@@ -220,21 +223,27 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Webhook OpenWA rep JSON (no multipart), suporta media per URL/base64
 - Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, sense default)
 - Structured logging amb pino + pino-pretty en dev
-- Tests amb Jest + ts-jest. 40 tests en 4 suites (csvImporter, returnDetector, matchingEngine, conversationAgent)
+- Tests amb Jest + ts-jest. 43 tests en 6 suites (csvImporter, returnDetector, matchingEngine, conversationAgent, health, clients)
 - Agent conversacional: classificació regex CAT/ES, 4 intencions (pagament_clar, pagament_ambigu, comprovant_enviat, altres_temes)
 - Agent: paraules clau i plantilles configurables via AppSettings (Settings UI)
-- Agent: timeout 24h configurable per ESPERANT_DETALLS
-- Agent: no respon si el deutor ha estat redirigit (evita bucles)
+- Agent: timeout 24h configurable per ESPERANT_DETALLS → timeout expirat → REVISAR amb nota [Timeout agent]
+- Agent: no respon si està desactivat (agent.enabled=false) o si el deutor ha estat redirigit
 - Agent: resposta sempre en català (plantilles fixes)
+- Agent: si falla → envia missatge de disculpa al deutor + marca REVISAR + [Agent error]
+- Agent: endpoint simulate-agent per provar què respondria sense enviar
+- Plantilla WhatsApp múltiple: {{receipts_list}} + {{total_amount}} (selecció N impagats → 1 missatge)
 - DELETE d'impagats: esborra en cascada (messages, proofs, reconciliationMatches)
 - Import SEPA XML (pain.002.001.03): extreu nom deutor, IBAN, import, data, núm. factura (de Ustrd), codi rebuig
 - SEPA XML: `ReqdColltnDt` = data d'emissió del rebut → període de servei = mes anterior
 - Seed script: `cd backend && DATABASE_URL=... npx ts-node seed.ts` per restaurar dades de prova
 - Frontend amb ErrorBoundary i estats d'error a totes les pàgines
+- Components frontend separats: CompanySection, OpenWASection, AgentSection, ReceiptInfo, ReceiptActions, ConversationView, StatusBadge, StatsCard
+- Graceful shutdown: SIGTERM/SIGINT tanquen servidor HTTP + prisma.$disconnect()
 - Connector Caixa Guissona com a placeholder (no inventar endpoints)
-- Validació d'input: whitelist de camps permesos a cada ruta (pick())
+- Validació d'input: Zod schemas (createClientSchema, createInvoiceSchema, createReceiptSchema, updateReceiptSchema...) amb validate()
 - Filtre de tipus MIME a uploads: CSV, imatges i PDF
-- Error handler: no exposa detalls interns en producció, usa logger
+- Error handler: distingeix errors Prisma (P2025→404, P2002→409), Zod (400), genèrics (500). Async routes amb asyncHandler wrapper
+- Prisma: tipus TxClient exportat (Omit<PrismaClient, ...>) per funcions que accepten tx opcional dins $transaction
 - Secrets al .env, configuració no sensible a AppSettings
 - Health check: GET /api/health amb verificació de connexió a BD
 - Reconciliació: matches de confiança ≥0.8 → PAGAMENT_CONFIRMAT, 0.6-0.8 → REVISAR
@@ -242,7 +251,7 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Port 5433 per postgres (5432 ocupat per openwa-postgres)
 - Port 8080 per frontend producció (80 ocupat)
 - Estats traduïts al català
-- Dashboard amb resum per deutor: quants rebuts, quants períodes, total deute
+- Dashboard: groupBy per als comptadors principals (1 query en lloc de 5). Resum per deutor: rebuts, períodes, total deute
 - Cercador de text i eliminació massiva amb checkboxes a totes les llistes
 - Columnes ordenables als impagats (clicar capçalera)
 - Camps editables al detall de l'impagat (client, factura, ref, període, motiu, notes)

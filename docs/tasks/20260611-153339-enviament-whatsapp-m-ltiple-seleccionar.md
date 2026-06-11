@@ -58,12 +58,13 @@ Enviament WhatsApp múltiple: seleccionar diversos impagats del mateix client i 
 
 ## Estat
 
-Implementat: sí
-Verificat: sí
-Completat: sí
+Implementat: no
+Verificat: no
+Completat: no
 
 ## Notes
 
+- 2026-06-11 16:49: Commit amb 38 fitxers: +1676/-930 línies. Missatge descriptiu amb totes les millores. → Implementat:no Verificat:no Completat:no
 - 2026-06-11 16:40: 7 fixes: 1) pagament_ambigu → ESPERANT_DETALLS, 2) altres_temes → REVISAR, 3) timeout actualitza l'estat, 4) agent.enabled es comprova al webhook, 5) errors de l'agent envien fallback al deutor + marquen REVISAR, 6) extractReference/Amount/Date millorats, 7) proofReceivedAt només per pagament_clar/comprovant → Implementat:sí Verificat:no Completat:no
 - 2026-06-11 16:03: Afegit endpoint POST /api/returned-receipts/:id/simulate-agent que executa l'agent sense enviar. Afegida secció "Provar agent" al detall d'impagat: l'usuari escriu com si fos el deutor, veu la classificació (intent + acció), el canvi d'estat previst i la resposta que enviaria l'agent. → Implementat:sí Verificat:sí Completat:sí
 - 2026-06-11 15:36: Implementat: sendBulkWhatsApp a notificationService.ts, endpoint POST /api/returned-receipts/send-bulk-whatsapp, plantilla múltiple configurable (whatsapp_template_multiple), botó WhatsApp múltiple a la llista d'impagats (només actiu si selecció del mateix client), secció de plantilla múltiple a Settings → Implementat:sí Verificat:sí Completat:sí

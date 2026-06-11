@@ -48,15 +48,23 @@ function parseAmount(block: string): number {
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  // SEPA dates: YYYY-MM-DD
-  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  // Try SEPA format: YYYY-MM-DD
+  let m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) {
-    const year = parseInt(m[1]);
-    const month = parseInt(m[2]);
-    const day = parseInt(m[3]);
-    // Validate ranges
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-    return new Date(year, month - 1, day);
+    const year = parseInt(m[1]), month = parseInt(m[2]), day = parseInt(m[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day);
+    }
+  }
+  // Try DD/MM/YY or DD/MM/YYYY (Ustrd invoice dates)
+  m = dateStr.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) {
+    const day = parseInt(m[1]), month = parseInt(m[2]);
+    let year = parseInt(m[3]);
+    if (year < 100) year += 2000;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day);
+    }
   }
   return null;
 }
@@ -81,16 +89,32 @@ function parseBlock(block: string): SepaTransaction | null {
   if (txSts !== "RJCT") return null; // Only rejected transactions
 
   const amount = parseAmount(block);
-  const collectionDateStr = getTag(block, "ReqdColltnDt");
-  const collectionDate = parseDate(collectionDateStr || "");
-  if (!collectionDate || amount <= 0) return null;
+  if (amount <= 0) return null;
+
+  const collectionDateStr = getTag(block, "ReqdColltnDt") || "";
+  let collectionDate = parseDate(collectionDateStr);
+
+  // If SEPA date is invalid, try invoice date from Ustrd as fallback
+  const ustrd = getNestedTag(block, "RmtInf", "Ustrd") || "";
+  let dateSource = "ReqdColltnDt";
+  if (!collectionDate) {
+    const invoiceDateStr = parseInvoiceDate(ustrd);
+    if (invoiceDateStr) {
+      collectionDate = parseDate(invoiceDateStr);
+      dateSource = "Ustrd";
+    }
+  }
+  // Last resort: use today
+  if (!collectionDate) {
+    collectionDate = new Date();
+    dateSource = "fallback-today";
+  }
 
   const debtorName = getNestedTag(block, "Dbtr", "Nm") || "";
   const debtorIban = getNestedTag(block, "DbtrAcct", "IBAN") || "";
   const rejectionCode = getNestedTag(block, "Rsn", "Cd") || "UNKNOWN";
   const endToEndId = getTag(block, "OrgnlEndToEndId") || "";
   const mandateId = getNestedTag(block, "MndtRltdInf", "MndtId") || "";
-  const ustrd = getNestedTag(block, "RmtInf", "Ustrd") || "";
   const invoiceNumber = parseInvoiceNumber(ustrd);
   const invoiceDate = parseInvoiceDate(ustrd);
   const creditorName = getNestedTag(block, "Cdtr", "Nm") || "";
@@ -124,6 +148,7 @@ function parseBlock(block: string): SepaTransaction | null {
       endToEndId,
       mandateId,
       collectionDate: collectionDateStr,
+      dateSource,
     },
   };
 }
@@ -182,6 +207,12 @@ export async function importSepaXml(xmlContent: string): Promise<{
     // Calculate service period
     const servicePeriod = computeServicePeriod(tx.collectionDate);
 
+    // Build notes: service period + warning if date was a fallback
+    let notes = servicePeriod ? `Període: ${servicePeriod}` : "";
+    if ((tx.rawData as any).dateSource && (tx.rawData as any).dateSource !== "ReqdColltnDt") {
+      notes = notes ? `${notes} ⚠️ Data estimada (${(tx.rawData as any).dateSource})` : `⚠️ Data estimada (${(tx.rawData as any).dateSource})`;
+    }
+
     // Create returned receipt
     await prisma.returnedReceipt.create({
       data: {
@@ -190,7 +221,7 @@ export async function importSepaXml(xmlContent: string): Promise<{
         returnDate: tx.collectionDate,
         returnReason: tx.rejectionCode,
         receiptReference: tx.invoiceNumber ? `Factura n: ${tx.invoiceNumber}` : tx.endToEndId,
-        notes: servicePeriod ? `Període: ${servicePeriod}` : null,
+        notes: notes || null,
         servicePeriod: servicePeriod || null,
         status: "DETECTAT",
       },

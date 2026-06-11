@@ -21,10 +21,15 @@ function AgentIndicator({ message }: { message: any }) {
 export default function ReturnedReceiptDetail() {
   const { id } = useParams();
   const { data: receipt, loading, error, reload } = useApi(() => api.getReturnedReceipt(parseInt(id!)));
+  const { data: clients } = useApi(() => api.getClients());
+  const { data: invoices } = useApi(() => api.getInvoices());
   const [sending, setSending] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
+  const [edit, setEdit] = useState(false);
+  const [editData, setEditData] = useState<any>({});
+  const [saving, setSaving] = useState(false);
 
   const handleSendWhatsApp = async () => {
     setSending(true);
@@ -32,21 +37,14 @@ export default function ReturnedReceiptDetail() {
       const result = await api.sendWhatsApp(parseInt(id!));
       if (result.success) reload();
       else alert("Error: " + result.error);
-    } catch (err: any) {
-      alert(err.message);
-    }
+    } catch (err: any) { alert(err.message); }
     setSending(false);
   };
 
   const handleUploadProof = async () => {
     if (!proofFile) return;
-    try {
-      await api.uploadProof(parseInt(id!), proofFile);
-      setProofFile(null);
-      reload();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    try { await api.uploadProof(parseInt(id!), proofFile); setProofFile(null); reload(); }
+    catch (err: any) { alert(err.message); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -57,15 +55,34 @@ export default function ReturnedReceiptDetail() {
   const handleSendManualReply = async () => {
     if (!replyText.trim()) return;
     setReplying(true);
-    try {
-      await api.sendManualReply(parseInt(id!), replyText.trim());
-      setReplyText("");
-      reload();
-    } catch (err: any) {
-      alert(err.message);
-    }
+    try { await api.sendManualReply(parseInt(id!), replyText.trim()); setReplyText(""); reload(); }
+    catch (err: any) { alert(err.message); }
     setReplying(false);
   };
+
+  const startEdit = () => {
+    setEditData({
+      receiptReference: receipt.receiptReference || "",
+      notes: receipt.notes || "",
+      servicePeriod: receipt.servicePeriod || "",
+      returnReason: receipt.returnReason || "",
+      clientId: receipt.clientId || "",
+      invoiceId: receipt.invoiceId || "",
+    });
+    setEdit(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.updateReturnedReceipt(parseInt(id!), editData);
+      setEdit(false);
+      reload();
+    } catch (err: any) { alert(err.message); }
+    setSaving(false);
+  };
+
+  const set = (key: string, value: any) => setEditData({ ...editData, [key]: value });
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
@@ -77,22 +94,71 @@ export default function ReturnedReceiptDetail() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Impagat #{receipt.id}</h1>
-        <StatusBadge status={receipt.status} />
+        <div className="flex items-center gap-3">
+          <StatusBadge status={receipt.status} />
+          {!edit && <button onClick={startEdit} className="text-blue-600 hover:underline text-sm">Editar</button>}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6 space-y-3">
-          <h2 className="font-semibold text-lg">Informació</h2>
-          <div><span className="text-sm text-gray-500">Data devolució:</span> {new Date(receipt.returnDate).toLocaleDateString("ca-ES")}</div>
-          <div><span className="text-sm text-gray-500">Import retornat:</span> <strong>{receipt.returnedAmount.toFixed(2)} €</strong></div>
-          <div><span className="text-sm text-gray-500">Referència:</span> {receipt.receiptReference || "-"}</div>
-          <div><span className="text-sm text-gray-500">Motiu:</span> {receipt.returnReason || "-"}</div>
-          <div><span className="text-sm text-gray-500">Client:</span> {receipt.client ? <>{receipt.client.name} ({receipt.client.whatsapp || "sense WhatsApp"})</> : <span className="text-orange-600">No assignat</span>}</div>
-          <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({receipt.invoice.amount.toFixed(2)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
-          {receipt.servicePeriod && <div><span className="text-sm text-gray-500">Període:</span> <span className="font-medium">{receipt.servicePeriod}</span></div>}
-          {receipt.notes && <div><span className="text-sm text-gray-500">Notes:</span> <span className="text-blue-700 font-medium">{receipt.notes}</span></div>}
-          {receipt.bankMovement?.rawData?.Valor && (
-            <div><span className="text-sm text-gray-500">Data emissió rebut:</span> {receipt.bankMovement.rawData.Valor}</div>
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold text-lg">Informació</h2>
+            {edit && (
+              <div className="flex gap-2">
+                <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? "Desant..." : "Desar"}</button>
+                <button onClick={() => setEdit(false)} className="border px-3 py-1 rounded text-sm hover:bg-gray-50">Cancel·lar</button>
+              </div>
+            )}
+          </div>
+
+          {edit ? (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500">Client</label>
+                <select className="w-full border rounded px-2 py-1 text-sm" value={editData.clientId || ""} onChange={(e) => set("clientId", e.target.value ? parseInt(e.target.value) : null)}>
+                  <option value="">Cap</option>
+                  {(clients || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Factura</label>
+                <select className="w-full border rounded px-2 py-1 text-sm" value={editData.invoiceId || ""} onChange={(e) => set("invoiceId", e.target.value ? parseInt(e.target.value) : null)}>
+                  <option value="">Cap</option>
+                  {(invoices || []).map((inv: any) => <option key={inv.id} value={inv.id}>#{inv.invoiceNumber} ({inv.amount.toFixed(2)}€)</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Núm. Factura / Referència</label>
+                <input className="w-full border rounded px-2 py-1 text-sm" value={editData.receiptReference} onChange={(e) => set("receiptReference", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Període servei</label>
+                <input className="w-full border rounded px-2 py-1 text-sm" value={editData.servicePeriod} onChange={(e) => set("servicePeriod", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Motiu</label>
+                <input className="w-full border rounded px-2 py-1 text-sm" value={editData.returnReason} onChange={(e) => set("returnReason", e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500">Notes</label>
+                <textarea className="w-full border rounded px-2 py-1 text-sm" rows={2} value={editData.notes} onChange={(e) => set("notes", e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div><span className="text-sm text-gray-500">Data devolució:</span> {new Date(receipt.returnDate).toLocaleDateString("ca-ES")}</div>
+              <div><span className="text-sm text-gray-500">Import retornat:</span> <strong>{receipt.returnedAmount.toFixed(2)} €</strong></div>
+              <div><span className="text-sm text-gray-500">Núm. Factura:</span> {receipt.receiptReference || "-"}</div>
+              <div><span className="text-sm text-gray-500">Motiu:</span> {receipt.returnReason || "-"}</div>
+              <div><span className="text-sm text-gray-500">Client:</span> {receipt.client ? <>{receipt.client.name} ({receipt.client.whatsapp || "sense WhatsApp"})</> : <span className="text-orange-600">No assignat</span>}</div>
+              <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({receipt.invoice.amount.toFixed(2)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
+              {receipt.servicePeriod && <div><span className="text-sm text-gray-500">Període:</span> <span className="font-medium">{receipt.servicePeriod}</span></div>}
+              {receipt.notes && <div><span className="text-sm text-gray-500">Notes:</span> <span className="text-blue-700 font-medium">{receipt.notes}</span></div>}
+              {receipt.bankMovement?.rawData?.Valor && (
+                <div><span className="text-sm text-gray-500">Data emissió rebut:</span> {receipt.bankMovement.rawData.Valor}</div>
+              )}
+            </>
           )}
         </div>
 
@@ -143,7 +209,6 @@ export default function ReturnedReceiptDetail() {
             </div>
           )}
 
-          {/* Agent status banner */}
           {isAgentActive && (
             <div className="bg-green-50 border border-green-300 rounded-lg p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -153,26 +218,21 @@ export default function ReturnedReceiptDetail() {
             </div>
           )}
 
-          {/* Manual reply box */}
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-sm font-semibold mb-2">Resposta manual</h3>
             <textarea
               className="w-full border rounded px-3 py-2 text-sm resize-y"
-              rows={3}
-              value={replyText}
+              rows={3} value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Escriu una resposta manual..."
             />
-            <button
-              onClick={handleSendManualReply}
+            <button onClick={handleSendManualReply}
               disabled={replying || !replyText.trim() || !receipt.client?.whatsapp}
-              className="mt-2 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
-            >
+              className="mt-2 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 disabled:opacity-50">
               {replying ? "Enviant..." : "Enviar resposta manual"}
             </button>
           </div>
 
-          {/* Conversation thread */}
           {receipt.messages?.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="font-semibold text-lg mb-3">Conversa WhatsApp</h2>

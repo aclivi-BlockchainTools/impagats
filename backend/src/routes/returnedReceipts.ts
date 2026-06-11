@@ -7,7 +7,7 @@ import { openwa } from "../connectors/OpenWAConnector";
 import multer from "multer";
 import path from "path";
 
-const RECEIPT_UPDATE_FIELDS = ["status", "notes", "clientId", "invoiceId"];
+const RECEIPT_UPDATE_FIELDS = ["status", "notes", "clientId", "invoiceId", "receiptReference", "servicePeriod", "returnReason", "returnedAmount", "returnDate"];
 const RECEIPT_CREATE_FIELDS = ["clientId", "invoiceId", "returnedAmount", "returnDate", "receiptDate", "receiptReference", "returnReason", "notes"];
 
 const proofUpload = multer({

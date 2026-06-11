@@ -91,6 +91,11 @@ model Message {
   status     String    @default("sent")
   externalId String?
 
+  agentIntent   String?
+  agentAction   String?
+  agentMetadata Json?
+  needsReview   Boolean   @default(false)
+
   receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
 }
 

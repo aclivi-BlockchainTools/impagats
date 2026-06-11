@@ -130,6 +130,7 @@ impagats/
 | `/api/invoices` | GET, POST |
 | `/api/invoices/:id` | GET, PUT, DELETE |
 | `/api/bank-movements` | GET (paginat: ?page=&limit=), POST (import CSV) |
+| `/api/bank-movements/xml` | POST (import SEPA XML pain.002) |
 | `/api/returned-receipts` | GET (filtres + paginat: ?page=&limit=), POST (creació manual) |
 | `/api/returned-receipts/:id` | GET, PUT (status) |
 | `/api/returned-receipts/:id/match` | POST (manual match) |
@@ -164,7 +165,7 @@ impagats/
 ## Fluxe principal
 
 1. **Crear clients i factures** manualment, o **importar CSV** → auto-crea clients
-2. **Importar CSV** → detecta devolucions (paraules clau + import negatiu), calcula període de servei
+2. **Importar CSV o XML SEPA** → detecta devolucions (paraules clau + import negatiu / XML pain.002), calcula període de servei
 3. **Matching automàtic** → extreu nom client del concepte, fuzzy match amb BD, auto-crea si no existeix
 4. **Crear impagat manual** → des de `/receipts/new` (sense necessitat de CSV)
 5. **Revisar impagats** → validar o corregir matches
@@ -226,6 +227,8 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Agent: no respon si el deutor ha estat redirigit (evita bucles)
 - Agent: resposta sempre en català (plantilles fixes)
 - DELETE d'impagats: esborra en cascada (messages, proofs, reconciliationMatches)
+- Import SEPA XML (pain.002.001.03): extreu nom deutor, IBAN, import, data, núm. factura (de Ustrd), codi rebuig
+- SEPA XML: `ReqdColltnDt` = data d'emissió del rebut → període de servei = mes anterior
 - Seed script: `cd backend && DATABASE_URL=... npx ts-node seed.ts` per restaurar dades de prova
 - Frontend amb ErrorBoundary i estats d'error a totes les pàgines
 - Connector Caixa Guissona com a placeholder (no inventar endpoints)

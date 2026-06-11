@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
@@ -6,9 +6,34 @@ import StatusBadge from "../components/StatusBadge";
 
 export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(filters));
 
   useEffect(() => { reload(); }, [filters]);
+
+  const filtered = useMemo(() => {
+    if (!receipts?.data) return [];
+    if (!search.trim()) return receipts.data;
+    const q = search.toLowerCase();
+    return receipts.data.filter((r: any) =>
+      (r.client?.name && r.client.name.toLowerCase().includes(q)) ||
+      (r.receiptReference && r.receiptReference.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q)) ||
+      (r.returnReason && r.returnReason.toLowerCase().includes(q))
+    );
+  }, [receipts, search]);
+
+  const toggle = (id: number) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const toggleAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map((r: any) => r.id)));
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Segur que vols eliminar aquest impagat?")) return;
@@ -20,14 +45,29 @@ export default function ReturnedReceiptsList() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Segur que vols eliminar ${selected.size} impagats?`)) return;
+    for (const id of selected) await api.deleteReturnedReceipt(id);
+    setSelected(new Set());
+    reload();
+  };
+
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Impagats</h1>
-        <Link to="/receipts/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Nou impagat</Link>
+        <div className="flex gap-2">
+          {selected.size > 0 && (
+            <button onClick={handleBulkDelete} className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">
+              Eliminar ({selected.size})
+            </button>
+          )}
+          <Link to="/receipts/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Nou impagat</Link>
+        </div>
       </div>
       <div className="bg-white rounded-lg shadow p-4 mb-4 flex gap-4 flex-wrap">
         <select className="border rounded px-3 py-2 text-sm" value={filters.status || ""}
@@ -42,11 +82,13 @@ export default function ReturnedReceiptsList() {
           <option value="TANCAT">TANCAT</option>
           <option value="IGNORAT">IGNORAT</option>
         </select>
+        <input className="border rounded px-3 py-2 text-sm flex-1" placeholder="Cercar impagats..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
+              <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
               <th className="text-left p-3">Data</th>
               <th className="text-left p-3">Client</th>
               <th className="text-left p-3">Referència</th>
@@ -59,8 +101,9 @@ export default function ReturnedReceiptsList() {
             </tr>
           </thead>
           <tbody>
-            {receipts?.data?.map((r: any) => (
+            {filtered.map((r: any) => (
               <tr key={r.id} className="border-t">
+                <td className="p-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="p-3">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
                 <td className="p-3">{r.client?.name || "-"}</td>
                 <td className="p-3">{r.receiptReference || "-"}</td>
@@ -103,10 +146,10 @@ export default function ReturnedReceiptsList() {
                 </td>
               </tr>
             ))}
-            {(!receipts?.data || receipts.data.length === 0) && <tr><td colSpan={9} className="p-3 text-center text-gray-500">Cap impagat</td></tr>}
-            {receipts && (
-              <tr><td colSpan={9} className="p-3 text-right text-sm text-gray-500">
-                Mostrant {receipts.data?.length || 0} de {receipts.total} — Pàg {receipts.page}
+            {filtered.length === 0 && <tr><td colSpan={10} className="p-3 text-center text-gray-500">{search ? "Cap coincidència" : "Cap impagat"}</td></tr>}
+            {receipts && filtered.length > 0 && (
+              <tr><td colSpan={10} className="p-3 text-right text-sm text-gray-500">
+                Mostrant {filtered.length} de {receipts.total} — Pàg {receipts.page}
               </td></tr>
             )}
           </tbody>

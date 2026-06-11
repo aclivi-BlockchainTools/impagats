@@ -2,14 +2,14 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { config } from "../lib/config";
 import { logger } from "../lib/logger";
+import { openwa } from "../connectors/OpenWAConnector";
+import { handleIncomingMessage, checkConversationTimeout } from "../services/conversationAgent";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 
 const router = Router();
 
-// OpenWA webhook for incoming messages
-// OpenWA sends JSON (not multipart), but may include media via base64 or URL in the body
 router.post("/", async (req: Request, res: Response) => {
   // Verify webhook secret
   if (req.query.secret !== config.webhookSecret) {
@@ -18,12 +18,10 @@ router.post("/", async (req: Request, res: Response) => {
 
   const from = req.body.from || "";
   const text = req.body.body || "";
-  const media = req.body.media; // OpenWA may send media object with url/base64
+  const media = req.body.media;
 
-  // Clean WhatsApp ID: remove @c.us suffix if present
   const cleanPhone = from.replace(/@c\.us$/, "");
 
-  // Find client by WhatsApp number (try both with and without @c.us)
   const client = await prisma.client.findFirst({
     where: { whatsapp: cleanPhone, active: true },
   });
@@ -34,7 +32,7 @@ router.post("/", async (req: Request, res: Response) => {
   const openReceipt = await prisma.returnedReceipt.findFirst({
     where: {
       clientId: client.id,
-      status: { in: ["NOTIFICAT", "DETECTAT", "EMPARELLAT", "REVISAR"] },
+      status: { in: ["NOTIFICAT", "ESPERANT_DETALLS", "DETECTAT", "EMPARELLAT", "REVISAR"] },
     },
     orderBy: { returnDate: "desc" },
   });
@@ -50,7 +48,66 @@ router.post("/", async (req: Request, res: Response) => {
     },
   });
 
-  // If media attached (image/proof), download and save as payment proof
+  // --- AGENT: only for NOTIFICAT or ESPERANT_DETALLS ---
+  const agentEligible = openReceipt.status === "NOTIFICAT" || openReceipt.status === "ESPERANT_DETALLS";
+
+  if (agentEligible) {
+    try {
+      // Check for timeout on ESPERANT_DETALLS
+      if (openReceipt.status === "ESPERANT_DETALLS") {
+        const timedOut = await checkConversationTimeout(openReceipt.id);
+        if (timedOut) {
+          logger.info({ receiptId: openReceipt.id }, "Conversation timeout, agent silenced");
+          return res.status(200).json({ status: "timeout" });
+        }
+      }
+
+      const hasMedia = !!media;
+      const result = await handleIncomingMessage(
+        text || "",
+        hasMedia,
+        openReceipt.id,
+        client.name,
+      );
+
+      // Send agent response via WhatsApp
+      await openwa.sendMessage(cleanPhone, result.replyText);
+
+      // Save agent message
+      await prisma.message.create({
+        data: {
+          receiptId: openReceipt.id,
+          direction: "OUTBOUND",
+          content: result.replyText,
+          agentIntent: result.intent,
+          agentAction: result.action,
+          agentMetadata: result.metadata,
+          needsReview: result.intent === "altres_temes",
+        },
+      });
+
+      // Update receipt status if needed
+      const updateData: any = {};
+      if (result.receiptNewStatus) {
+        updateData.status = result.receiptNewStatus;
+        updateData.proofReceivedAt = new Date();
+      }
+      // Track conversation state in notes
+      const currentNotes = openReceipt.notes || "";
+      const conversationNote = `[Agent: ${result.intent} → ${result.action}]`;
+      updateData.notes = currentNotes ? `${currentNotes} ${conversationNote}` : conversationNote;
+
+      await prisma.returnedReceipt.update({
+        where: { id: openReceipt.id },
+        data: updateData,
+      });
+    } catch (err) {
+      logger.error({ err, receiptId: openReceipt.id }, "Agent error");
+      // Don't block — the message was already saved
+    }
+  }
+
+  // Handle media attachments
   if (media) {
     try {
       let fileBuffer: Buffer | null = null;
@@ -82,11 +139,6 @@ router.post("/", async (req: Request, res: Response) => {
             filePath,
             status: "RECEIVED",
           },
-        });
-
-        await prisma.returnedReceipt.update({
-          where: { id: openReceipt.id },
-          data: { status: "JUSTIFICANT_REBUT", proofReceivedAt: new Date() },
         });
       }
     } catch (err) {

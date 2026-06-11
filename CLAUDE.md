@@ -242,3 +242,12 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Port 5433 per postgres (5432 ocupat per openwa-postgres)
 - Port 8080 per frontend producció (80 ocupat)
 - Estats traduïts al català
+- Dashboard amb resum per deutor: quants rebuts, quants períodes, total deute
+- Cercador de text i eliminació massiva amb checkboxes a totes les llistes
+- Columnes ordenables als impagats (clicar capçalera)
+- Camps editables al detall de l'impagat (client, factura, ref, període, motiu, notes)
+- Columna Motiu amb significat del codi SEPA (AM04 → "AM04 - Fons insuficients")
+- Columna Núm. Factura i Període a la llista d'impagats
+- Client: només WhatsApp (sense telèfon) al formulari
+- SEPA XML: data invàlida fa fallback a data de factura (Ustrd) → mai es descarta cap impagat
+- SEPA XML: codis de rebuig traduïts al català

@@ -129,14 +129,18 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 router.put("/:id", async (req: Request, res: Response) => {
-  const body = pick(req.body, RECEIPT_UPDATE_FIELDS);
-  const { status, notes, clientId, invoiceId } = body as any;
-  const updateData: any = { status, notes, clientId, invoiceId };
+  const body = pick(req.body, RECEIPT_UPDATE_FIELDS) as any;
+  const updateData: any = { ...body };
 
-  if (status === "NOTIFICAT") updateData.notifiedAt = new Date();
-  if (status === "JUSTIFICANT_REBUT") updateData.proofReceivedAt = new Date();
-  if (status === "PAGAMENT_CONFIRMAT") updateData.paymentConfirmedAt = new Date();
-  if (status === "TANCAT") updateData.closedAt = new Date();
+  // Convert date string to Date if present
+  if (updateData.returnDate && typeof updateData.returnDate === "string") {
+    updateData.returnDate = new Date(updateData.returnDate);
+  }
+
+  if (updateData.status === "NOTIFICAT" || body.status === "NOTIFICAT") updateData.notifiedAt = new Date();
+  if (updateData.status === "JUSTIFICANT_REBUT" || body.status === "JUSTIFICANT_REBUT") updateData.proofReceivedAt = new Date();
+  if (updateData.status === "PAGAMENT_CONFIRMAT" || body.status === "PAGAMENT_CONFIRMAT") updateData.paymentConfirmedAt = new Date();
+  if (updateData.status === "TANCAT" || body.status === "TANCAT") updateData.closedAt = new Date();
 
   const receipt = await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },

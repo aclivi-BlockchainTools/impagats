@@ -4,11 +4,27 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 
+function AgentIndicator({ message }: { message: any }) {
+  if (!message.agentIntent) return null;
+  return (
+    <div className="mt-1 text-xs flex items-center gap-2">
+      <span className="text-purple-600 font-medium">Agent</span>
+      <span className="text-gray-400">intent:</span>
+      <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-mono">{message.agentIntent}</span>
+      <span className="text-gray-400">→</span>
+      <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-mono">{message.agentAction}</span>
+      {message.needsReview && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-xs">Revisar</span>}
+    </div>
+  );
+}
+
 export default function ReturnedReceiptDetail() {
   const { id } = useParams();
   const { data: receipt, loading, error, reload } = useApi(() => api.getReturnedReceipt(parseInt(id!)));
   const [sending, setSending] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replying, setReplying] = useState(false);
 
   const handleSendWhatsApp = async () => {
     setSending(true);
@@ -38,9 +54,24 @@ export default function ReturnedReceiptDetail() {
     reload();
   };
 
+  const handleSendManualReply = async () => {
+    if (!replyText.trim()) return;
+    setReplying(true);
+    try {
+      await api.sendManualReply(parseInt(id!), replyText.trim());
+      setReplyText("");
+      reload();
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setReplying(false);
+  };
+
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
   if (!receipt) return <div className="text-gray-500">No trobat</div>;
+
+  const isAgentActive = receipt.status === "NOTIFICAT" || receipt.status === "ESPERANT_DETALLS";
 
   return (
     <div>
@@ -112,20 +143,59 @@ export default function ReturnedReceiptDetail() {
             </div>
           )}
 
+          {/* Agent status banner */}
+          {isAgentActive && (
+            <div className="bg-green-50 border border-green-300 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+                <span className="text-green-700 text-sm font-medium">Agent actiu — Esperant resposta del deutor</span>
+              </div>
+            </div>
+          )}
+
+          {/* Manual reply box */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold mb-2">Resposta manual</h3>
+            <textarea
+              className="w-full border rounded px-3 py-2 text-sm resize-y"
+              rows={3}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Escriu una resposta manual..."
+            />
+            <button
+              onClick={handleSendManualReply}
+              disabled={replying || !replyText.trim() || !receipt.client?.whatsapp}
+              className="mt-2 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {replying ? "Enviant..." : "Enviar resposta manual"}
+            </button>
+          </div>
+
+          {/* Conversation thread */}
           {receipt.messages?.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="font-semibold text-lg mb-2">WhatsApp</h2>
-              <ul className="text-sm space-y-2">
-                {receipt.messages.map((m: any) => (
-                  <li key={m.id} className={`p-2 rounded ${m.direction === "OUTBOUND" ? "bg-green-50" : "bg-blue-50"}`}>
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>{m.direction === "OUTBOUND" ? "Enviat" : "Rebut"}</span>
-                      <span>{new Date(m.sentAt).toLocaleString("ca-ES")}</span>
+              <h2 className="font-semibold text-lg mb-3">Conversa WhatsApp</h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {[...receipt.messages].reverse().map((m: any) => (
+                  <div key={m.id} className={`rounded-lg p-3 text-sm ${
+                    m.direction === "OUTBOUND"
+                      ? m.agentIntent ? "bg-purple-50 border border-purple-200" : "bg-green-50 border border-green-200"
+                      : "bg-blue-50 border border-blue-200"
+                  }`}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium">
+                        {m.direction === "OUTBOUND"
+                          ? m.agentIntent ? "🤖 Agent (auto)" : "📤 Enviat"
+                          : "📥 Rebut"}
+                      </span>
+                      <span className="text-xs text-gray-500">{new Date(m.sentAt).toLocaleString("ca-ES")}</span>
                     </div>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
-                  </li>
+                    <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+                    <AgentIndicator message={m} />
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>

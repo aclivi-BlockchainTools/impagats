@@ -134,7 +134,9 @@ impagats/
 | `/api/returned-receipts/:id` | GET, PUT (status) |
 | `/api/returned-receipts/:id/match` | POST (manual match) |
 | `/api/returned-receipts/:id/send-whatsapp` | POST |
+| `/api/returned-receipts/:id/reply` | POST (resposta manual, desactiva agent) |
 | `/api/returned-receipts/:id/proof` | POST (upload fitxer) |
+| `/api/returned-receipts/:id` | DELETE (esborra receipt + messages + proofs + matches) |
 | `/api/messages` | GET (?receiptId=) |
 | `/api/settings` | GET, PUT |
 | `/api/settings/test-openwa` | POST |
@@ -167,8 +169,10 @@ impagats/
 4. **Crear impagat manual** → des de `/receipts/new` (sense necessitat de CSV)
 5. **Revisar impagats** → validar o corregir matches
 6. **Enviar WhatsApp** → manual des del detall (plantilla editable amb variables)
-7. **Rebre resposta** → webhook rep missatges entrants, guarda justificants
-8. **Conciliar** → noves transferències entrants es creuen amb impagats oberts
+7. **Rebre resposta** → webhook rep missatges entrants, agent respon automàticament
+8. **Agent conversacional** → classifica resposta del deutor (CAT/ES), confirma pagament o redirigeix
+9. **Resposta manual** → usuari pot prendre control i respondre manualment des del detall
+10. **Conciliar** → noves transferències entrants es creuen amb impagats oberts
 
 ### Variables plantilla WhatsApp
 `{{client_name}}`, `{{invoice_number}}`, `{{amount}}`, `{{receipt_reference}}`, `{{service_period}}`, `{{company_iban}}`, `{{company_name}}`
@@ -215,7 +219,14 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Webhook OpenWA rep JSON (no multipart), suporta media per URL/base64
 - Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, sense default)
 - Structured logging amb pino + pino-pretty en dev
-- Tests amb Jest + ts-jest. 20 tests en 3 suites (csvImporter, returnDetector, matchingEngine)
+- Tests amb Jest + ts-jest. 40 tests en 4 suites (csvImporter, returnDetector, matchingEngine, conversationAgent)
+- Agent conversacional: classificació regex CAT/ES, 4 intencions (pagament_clar, pagament_ambigu, comprovant_enviat, altres_temes)
+- Agent: paraules clau i plantilles configurables via AppSettings (Settings UI)
+- Agent: timeout 24h configurable per ESPERANT_DETALLS
+- Agent: no respon si el deutor ha estat redirigit (evita bucles)
+- Agent: resposta sempre en català (plantilles fixes)
+- DELETE d'impagats: esborra en cascada (messages, proofs, reconciliationMatches)
+- Seed script: `cd backend && DATABASE_URL=... npx ts-node seed.ts` per restaurar dades de prova
 - Frontend amb ErrorBoundary i estats d'error a totes les pàgines
 - Connector Caixa Guissona com a placeholder (no inventar endpoints)
 - Validació d'input: whitelist de camps permesos a cada ruta (pick())

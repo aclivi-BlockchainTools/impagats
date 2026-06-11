@@ -41,6 +41,11 @@ export const api = {
     formData.append("file", file);
     return fetch(BASE + "/bank-movements", { method: "POST", body: formData }).then((r) => r.json());
   },
+  importSepaXml: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(BASE + "/bank-movements/xml", { method: "POST", body: formData }).then((r) => r.json());
+  },
 
   // Returned receipts
   getReturnedReceipts: (params?: Record<string, string>) => {

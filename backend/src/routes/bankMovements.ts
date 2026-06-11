@@ -3,19 +3,20 @@ import multer from "multer";
 import path from "path";
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
-import { importCsv } from "../services/csvImporter";
-import { detectReturns } from "../services/returnDetector";
-import { matchAllDetected } from "../services/matchingEngine";
-import { reconcileNewMovements } from "../services/reconciliation";
+import { importSepaXml } from "../services/sepaXmlImporter";
+import fs from "fs";
 
 const upload = multer({
   dest: path.join(__dirname, "../../uploads"),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
-    const isCsv = file.mimetype === "text/csv"
+    const allowed = file.mimetype === "text/csv"
       || file.mimetype === "application/vnd.ms-excel"
-      || file.originalname.endsWith(".csv");
-    cb(null, isCsv);
+      || file.originalname.endsWith(".csv")
+      || file.mimetype === "text/xml"
+      || file.mimetype === "application/xml"
+      || file.originalname.endsWith(".xml");
+    cb(null, allowed);
   },
 });
 const router = Router();
@@ -270,6 +271,25 @@ router.post("/", upload.single("file"), async (req: Request, res: Response) => {
   await auditLog("IMPORT_CSV", "BankMovement", undefined, result);
 
   res.json(result);
+});
+
+// SEPA XML import
+router.post("/xml", upload.single("file"), async (req: Request, res: Response) => {
+  if (!req.file) return res.status(400).json({ error: "Fitxer XML requerit" });
+
+  try {
+    const content = fs.readFileSync(req.file.path, "utf-8");
+    const result = await importSepaXml(content);
+
+    await auditLog("IMPORT_SEPA_XML", "BankMovement", undefined, result);
+
+    res.json({
+      ...result,
+      message: `${result.total} devolucions trobades, ${result.imported} importades, ${result.detected} detectades, ${result.matched} emparellades`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: `Error processant XML: ${err.message}` });
+  }
 });
 
 export default router;

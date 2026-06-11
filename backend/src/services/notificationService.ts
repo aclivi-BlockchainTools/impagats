@@ -47,7 +47,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
 
   const text = resolveTemplate(template, {
     client_name: receipt.client.name,
-    invoice_number: receipt.invoice?.invoiceNumber || "N/A",
+    invoice_number: receipt.invoice?.invoiceNumber || receipt.receiptReference || "N/A",
     amount: receipt.returnedAmount.toFixed(2),
     receipt_reference: receipt.receiptReference || "",
     service_period: receipt.servicePeriod || "",

@@ -220,7 +220,7 @@ export async function importSepaXml(xmlContent: string): Promise<{
         returnedAmount: tx.amount,
         returnDate: tx.collectionDate,
         returnReason: tx.rejectionCode,
-        receiptReference: tx.invoiceNumber ? `Factura n: ${tx.invoiceNumber}` : tx.endToEndId,
+        receiptReference: tx.invoiceNumber || tx.endToEndId,
         notes: notes || null,
         servicePeriod: servicePeriod || null,
         status: "DETECTAT",

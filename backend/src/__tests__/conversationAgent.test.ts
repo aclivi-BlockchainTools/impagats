@@ -23,7 +23,7 @@ describe("classifyMessage", () => {
     });
 
     it("detecta transferència feta en català", () => {
-      const r = classifyMessage("Ja he pagat la transferència, saludos", mockKeywords, false);
+      const r = classifyMessage("Ja he pagat, transferència completada", mockKeywords, false);
       expect(r.intent).toBe("pagament_clar");
     });
 

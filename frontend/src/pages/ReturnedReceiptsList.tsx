@@ -93,7 +93,7 @@ export default function ReturnedReceiptsList() {
               <th className="text-left p-3">Client</th>
               <th className="text-left p-3">Núm. Factura</th>
               <th className="text-left p-3">Motiu</th>
-              <th className="text-left p-3">Notes</th>
+              <th className="text-left p-3">Període</th>
               <th className="text-left p-3">Data emissió</th>
               <th className="text-right p-3">Import</th>
               <th className="text-left p-3">Estat</th>
@@ -109,7 +109,7 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3">{r.client?.name || "-"}</td>
                 <td className="p-3">{r.receiptReference || "-"}</td>
                 <td className="p-3 text-xs">{r.returnReason || "-"}</td>
-                <td className="p-3 text-sm">{r.notes || "-"}</td>
+                <td className="p-3 text-sm">{r.servicePeriod || "-"}</td>
                 <td className="p-3 text-sm">{r.bankMovement?.rawData?.Valor || "-"}</td>
                 <td className="p-3 text-right">{r.returnedAmount.toFixed(2)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>

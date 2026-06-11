@@ -63,8 +63,9 @@ model ReturnedReceipt {
   returnedAmount      Float
   returnDate          DateTime
   returnReason        String?
-  status              String    @default("DETECTED")
+  status              String    @default("DETECTAT")
   notes               String?
+  servicePeriod        String?
   detectedAt          DateTime  @default(now())
   notifiedAt          DateTime?
   proofReceivedAt     DateTime?

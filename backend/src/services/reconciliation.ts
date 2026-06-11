@@ -2,7 +2,7 @@ import prisma from "../lib/prisma";
 
 export async function reconcileNewMovements(): Promise<number> {
   const openReceipts = await prisma.returnedReceipt.findMany({
-    where: { status: { in: ["NOTIFIED", "PROOF_RECEIVED"] } },
+    where: { status: { in: ["NOTIFICAT", "JUSTIFICANT_REBUT"] } },
     include: { client: true },
   });
 
@@ -34,24 +34,27 @@ export async function reconcileNewMovements(): Promise<number> {
           if (nameMatch) confidence = 0.9;
         }
 
-        if (confidence >= 0.8) {
-          await prisma.reconciliationMatch.create({
-            data: {
-              receiptId: receipt.id,
-              bankMovementId: mv.id,
-              amount: mv.amount,
-              confidence,
-            },
-          });
+        // Always create reconciliation match, with appropriate confidence/status
+        const isHighConfidence = confidence >= 0.8;
 
-          await prisma.returnedReceipt.update({
-            where: { id: receipt.id },
-            data: { status: "PAYMENT_CONFIRMED", paymentConfirmedAt: new Date() },
-          });
+        await prisma.reconciliationMatch.create({
+          data: {
+            receiptId: receipt.id,
+            bankMovementId: mv.id,
+            amount: mv.amount,
+            confidence,
+          },
+        });
 
-          matched++;
-          break; // One movement matches one receipt
-        }
+        await prisma.returnedReceipt.update({
+          where: { id: receipt.id },
+          data: isHighConfidence
+            ? { status: "PAGAMENT_CONFIRMAT", paymentConfirmedAt: new Date() }
+            : { status: "REVISAR" },
+        });
+
+        matched++;
+        break; // One movement matches one receipt
       }
     }
   }

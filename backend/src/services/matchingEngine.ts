@@ -20,6 +20,11 @@ function extractClientName(concept: string): string | null {
   return null;
 }
 
+// Resolve status: EMPARELLAT only if client has WhatsApp, otherwise REVISAR
+function resolveStatus(client: { whatsapp?: string | null }): string {
+  return client.whatsapp ? "EMPARELLAT" : "REVISAR";
+}
+
 // Simple fuzzy match score based on shared word parts
 function nameMatchScore(extractedName: string, clientName: string): number {
   const a = extractedName.toLowerCase().trim();
@@ -57,7 +62,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
     where: { id: receiptId },
   });
 
-  if (!receipt || receipt.status === "IGNORED" || receipt.status === "CLOSED") return;
+  if (!receipt || !["DETECTAT", "REVISAR"].includes(receipt.status)) return;
 
   const concept = receipt.receiptReference || receipt.returnReason || "";
 
@@ -66,11 +71,13 @@ export async function matchReceipt(receiptId: number): Promise<void> {
   if (refMatch) {
     const invoice = await prisma.invoice.findFirst({
       where: { invoiceNumber: refMatch[0] },
+      include: { client: true },
     });
     if (invoice) {
+      const status = resolveStatus(invoice.client);
       await prisma.returnedReceipt.update({
         where: { id: receiptId },
-        data: { invoiceId: invoice.id, clientId: invoice.clientId, status: "MATCHED" },
+        data: { invoiceId: invoice.id, clientId: invoice.clientId, status },
       });
       return;
     }
@@ -92,6 +99,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
     }
 
     if (bestClient && bestScore >= 0.7) {
+      const status = resolveStatus(bestClient);
       // Check if there's an invoice for this client with matching amount
       const invoicesByAmount = await prisma.invoice.findMany({
         where: {
@@ -106,7 +114,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
           data: {
             clientId: bestClient.id,
             invoiceId: invoicesByAmount[0].id,
-            status: "MATCHED",
+            status,
           },
         });
         return;
@@ -115,7 +123,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
       // Client matched but no unique invoice → match to client only
       await prisma.returnedReceipt.update({
         where: { id: receiptId },
-        data: { clientId: bestClient.id, status: "MATCHED" },
+        data: { clientId: bestClient.id, status },
       });
       return;
     }
@@ -124,7 +132,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
       // Low confidence match → needs review but assign client anyway
       await prisma.returnedReceipt.update({
         where: { id: receiptId },
-        data: { clientId: bestClient.id, status: "NEEDS_REVIEW" },
+        data: { clientId: bestClient.id, status: "REVISAR" },
       });
       return;
     }
@@ -137,7 +145,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
       });
       await prisma.returnedReceipt.update({
         where: { id: receiptId },
-        data: { clientId: newClient.id, status: "MATCHED" },
+        data: { clientId: newClient.id, status: "REVISAR" },
       });
       return;
     }
@@ -150,12 +158,13 @@ export async function matchReceipt(receiptId: number): Promise<void> {
   });
 
   if (invoicesByAmount.length === 1) {
+    const status = resolveStatus(invoicesByAmount[0].client);
     await prisma.returnedReceipt.update({
       where: { id: receiptId },
       data: {
         invoiceId: invoicesByAmount[0].id,
         clientId: invoicesByAmount[0].clientId,
-        status: "MATCHED",
+        status,
       },
     });
     return;
@@ -164,7 +173,7 @@ export async function matchReceipt(receiptId: number): Promise<void> {
   if (invoicesByAmount.length > 1) {
     await prisma.returnedReceipt.update({
       where: { id: receiptId },
-      data: { status: "NEEDS_REVIEW" },
+      data: { status: "REVISAR" },
     });
     return;
   }
@@ -172,13 +181,13 @@ export async function matchReceipt(receiptId: number): Promise<void> {
   // Cap match
   await prisma.returnedReceipt.update({
     where: { id: receiptId },
-    data: { status: "NEEDS_REVIEW" },
+    data: { status: "REVISAR" },
   });
 }
 
 export async function matchAllDetected(): Promise<number> {
   const detected = await prisma.returnedReceipt.findMany({
-    where: { status: "DETECTED" },
+    where: { status: "DETECTAT" },
   });
 
   for (const r of detected) {

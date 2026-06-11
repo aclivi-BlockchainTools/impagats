@@ -6,7 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 
 export default function ReturnedReceiptDetail() {
   const { id } = useParams();
-  const { data: receipt, loading, reload } = useApi(() => api.getReturnedReceipt(parseInt(id!)));
+  const { data: receipt, loading, error, reload } = useApi(() => api.getReturnedReceipt(parseInt(id!)));
   const [sending, setSending] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
 
@@ -39,6 +39,7 @@ export default function ReturnedReceiptDetail() {
   };
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
+  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
   if (!receipt) return <div className="text-gray-500">No trobat</div>;
 
   return (
@@ -57,6 +58,7 @@ export default function ReturnedReceiptDetail() {
           <div><span className="text-sm text-gray-500">Motiu:</span> {receipt.returnReason || "-"}</div>
           <div><span className="text-sm text-gray-500">Client:</span> {receipt.client ? <>{receipt.client.name} ({receipt.client.whatsapp || "sense WhatsApp"})</> : <span className="text-orange-600">No assignat</span>}</div>
           <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({receipt.invoice.amount.toFixed(2)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
+          {receipt.servicePeriod && <div><span className="text-sm text-gray-500">Període:</span> <span className="font-medium">{receipt.servicePeriod}</span></div>}
           {receipt.notes && <div><span className="text-sm text-gray-500">Notes:</span> <span className="text-blue-700 font-medium">{receipt.notes}</span></div>}
           {receipt.bankMovement?.rawData?.Valor && (
             <div><span className="text-sm text-gray-500">Data emissió rebut:</span> {receipt.bankMovement.rawData.Valor}</div>
@@ -83,14 +85,14 @@ export default function ReturnedReceiptDetail() {
                 <label className="text-sm font-medium block mb-1">Canviar estat</label>
                 <select className="w-full border rounded px-3 py-2 text-sm" value={receipt.status}
                   onChange={(e) => handleStatusChange(e.target.value)}>
-                  <option value="DETECTED">DETECTED</option>
-                  <option value="MATCHED">MATCHED</option>
-                  <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
-                  <option value="NOTIFIED">NOTIFIED</option>
-                  <option value="PROOF_RECEIVED">PROOF_RECEIVED</option>
-                  <option value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</option>
-                  <option value="CLOSED">CLOSED</option>
-                  <option value="IGNORED">IGNORED</option>
+                  <option value="DETECTAT">DETECTAT</option>
+                  <option value="EMPARELLAT">EMPARELLAT</option>
+                  <option value="REVISAR">REVISAR</option>
+                  <option value="NOTIFICAT">NOTIFICAT</option>
+                  <option value="JUSTIFICANT_REBUT">JUSTIFICANT REBUT</option>
+                  <option value="PAGAMENT_CONFIRMAT">PAGAMENT CONFIRMAT</option>
+                  <option value="TANCAT">TANCAT</option>
+                  <option value="IGNORAT">IGNORAT</option>
                 </select>
               </div>
             </div>

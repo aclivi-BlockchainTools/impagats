@@ -1,12 +1,12 @@
 const statusColors: Record<string, string> = {
-  DETECTED: "bg-yellow-100 text-yellow-800",
-  MATCHED: "bg-blue-100 text-blue-800",
-  NEEDS_REVIEW: "bg-orange-100 text-orange-800",
-  NOTIFIED: "bg-purple-100 text-purple-800",
-  PROOF_RECEIVED: "bg-green-100 text-green-800",
-  PAYMENT_CONFIRMED: "bg-emerald-100 text-emerald-800",
-  CLOSED: "bg-gray-100 text-gray-800",
-  IGNORED: "bg-gray-100 text-gray-500",
+  DETECTAT: "bg-yellow-100 text-yellow-800",
+  EMPARELLAT: "bg-blue-100 text-blue-800",
+  REVISAR: "bg-orange-100 text-orange-800",
+  NOTIFICAT: "bg-purple-100 text-purple-800",
+  JUSTIFICANT_REBUT: "bg-green-100 text-green-800",
+  PAGAMENT_CONFIRMAT: "bg-emerald-100 text-emerald-800",
+  TANCAT: "bg-gray-100 text-gray-800",
+  IGNORAT: "bg-gray-100 text-gray-500",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

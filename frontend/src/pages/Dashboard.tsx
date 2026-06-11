@@ -3,9 +3,10 @@ import { api } from "../lib/api";
 import StatsCard from "../components/StatsCard";
 
 export default function Dashboard() {
-  const { data, loading } = useApi(() => api.getDashboard());
+  const { data, loading, error } = useApi(() => api.getDashboard());
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
+  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
   if (!data) return <div className="text-gray-500">Sense dades</div>;
 
   return (

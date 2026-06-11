@@ -6,11 +6,12 @@ import StatusBadge from "../components/StatusBadge";
 
 export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const { data: receipts, loading, reload } = useApi(() => api.getReturnedReceipts(filters));
+  const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(filters));
 
   useEffect(() => { reload(); }, [filters]);
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
+  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>
@@ -22,14 +23,14 @@ export default function ReturnedReceiptsList() {
         <select className="border rounded px-3 py-2 text-sm" value={filters.status || ""}
           onChange={(e) => setFilters(e.target.value ? { ...filters, status: e.target.value } : {})}>
           <option value="">Tots els estats</option>
-          <option value="DETECTED">DETECTED</option>
-          <option value="MATCHED">MATCHED</option>
-          <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
-          <option value="NOTIFIED">NOTIFIED</option>
-          <option value="PROOF_RECEIVED">PROOF_RECEIVED</option>
-          <option value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</option>
-          <option value="CLOSED">CLOSED</option>
-          <option value="IGNORED">IGNORED</option>
+          <option value="DETECTAT">DETECTAT</option>
+          <option value="EMPARELLAT">EMPARELLAT</option>
+          <option value="REVISAR">REVISAR</option>
+          <option value="NOTIFICAT">NOTIFICAT</option>
+          <option value="JUSTIFICANT_REBUT">JUSTIFICANT REBUT</option>
+          <option value="PAGAMENT_CONFIRMAT">PAGAMENT CONFIRMAT</option>
+          <option value="TANCAT">TANCAT</option>
+          <option value="IGNORAT">IGNORAT</option>
         </select>
       </div>
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -47,7 +48,7 @@ export default function ReturnedReceiptsList() {
             </tr>
           </thead>
           <tbody>
-            {receipts?.map((r: any) => (
+            {receipts?.data?.map((r: any) => (
               <tr key={r.id} className="border-t">
                 <td className="p-3">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
                 <td className="p-3">{r.client?.name || "-"}</td>
@@ -61,7 +62,12 @@ export default function ReturnedReceiptsList() {
                 </td>
               </tr>
             ))}
-            {receipts?.length === 0 && <tr><td colSpan={8} className="p-3 text-center text-gray-500">Cap impagat</td></tr>}
+            {(!receipts?.data || receipts.data.length === 0) && <tr><td colSpan={8} className="p-3 text-center text-gray-500">Cap impagat</td></tr>}
+            {receipts && (
+              <tr><td colSpan={8} className="p-3 text-right text-sm text-gray-500">
+                Mostrant {receipts.data?.length || 0} de {receipts.total} — Pàg {receipts.page}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>

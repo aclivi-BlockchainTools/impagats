@@ -11,6 +11,7 @@ const RECEIPT_CREATE_FIELDS = ["clientId", "invoiceId", "returnedAmount", "retur
 
 const proofUpload = multer({
   dest: path.join(__dirname, "../../uploads/proofs"),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     cb(null, allowed.includes(file.mimetype));
@@ -21,6 +22,9 @@ const router = Router();
 
 router.get("/", async (req: Request, res: Response) => {
   const { status, clientId, minAmount, maxAmount, from, to } = req.query;
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+  const skip = (page - 1) * limit;
   const where: any = {};
 
   if (status) where.status = status as string;
@@ -36,12 +40,17 @@ router.get("/", async (req: Request, res: Response) => {
     if (to) where.returnDate.lte = new Date(to as string);
   }
 
-  const receipts = await prisma.returnedReceipt.findMany({
-    where,
-    include: { client: true, invoice: true, bankMovement: true },
-    orderBy: { returnDate: "desc" },
-  });
-  res.json(receipts);
+  const [receipts, total] = await Promise.all([
+    prisma.returnedReceipt.findMany({
+      where,
+      skip,
+      take: limit,
+      include: { client: true, invoice: true, bankMovement: true },
+      orderBy: { returnDate: "desc" },
+    }),
+    prisma.returnedReceipt.count({ where }),
+  ]);
+  res.json({ data: receipts, total, page, limit });
 });
 
 router.post("/", async (req: Request, res: Response) => {
@@ -55,6 +64,22 @@ router.post("/", async (req: Request, res: Response) => {
   // Build rawData for the placeholder bank movement
   const rawData: any = { manual: true };
   if (receiptDate) rawData.Valor = receiptDate;
+
+  // Calculate service period from receiptDate (month before)
+  let servicePeriod: string | null = null;
+  if (receiptDate) {
+    const months = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
+      "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
+    const dm = String(receiptDate).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (dm) {
+      const m = parseInt(dm[2]);
+      let y = parseInt(dm[3]);
+      if (y < 100) y += 2000;
+      const sm = m - 1 < 1 ? 12 : m - 1;
+      const sy = m - 1 < 1 ? y - 1 : y;
+      servicePeriod = `${months[sm - 1]} ${sy}`;
+    }
+  }
 
   // Create a placeholder bank movement for manual receipts
   const movement = await prisma.bankMovement.create({
@@ -78,7 +103,8 @@ router.post("/", async (req: Request, res: Response) => {
       receiptReference: receiptReference || null,
       returnReason: returnReason || null,
       notes: notes || null,
-      status: clientId ? "MATCHED" : "DETECTED",
+      servicePeriod,
+      status: clientId ? "EMPARELLAT" : "DETECTAT",
     },
   });
 
@@ -106,10 +132,10 @@ router.put("/:id", async (req: Request, res: Response) => {
   const { status, notes, clientId, invoiceId } = body as any;
   const updateData: any = { status, notes, clientId, invoiceId };
 
-  if (status === "NOTIFIED") updateData.notifiedAt = new Date();
-  if (status === "PROOF_RECEIVED") updateData.proofReceivedAt = new Date();
-  if (status === "PAYMENT_CONFIRMED") updateData.paymentConfirmedAt = new Date();
-  if (status === "CLOSED") updateData.closedAt = new Date();
+  if (status === "NOTIFICAT") updateData.notifiedAt = new Date();
+  if (status === "JUSTIFICANT_REBUT") updateData.proofReceivedAt = new Date();
+  if (status === "PAGAMENT_CONFIRMAT") updateData.paymentConfirmedAt = new Date();
+  if (status === "TANCAT") updateData.closedAt = new Date();
 
   const receipt = await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },
@@ -124,7 +150,7 @@ router.post("/:id/match", async (req: Request, res: Response) => {
   const { clientId, invoiceId } = pick(req.body, ["clientId", "invoiceId"]) as any;
   const receipt = await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },
-    data: { clientId, invoiceId, status: "MATCHED" },
+    data: { clientId, invoiceId, status: "EMPARELLAT" },
   });
   await auditLog("MANUAL_MATCH", "ReturnedReceipt", receipt.id, { clientId, invoiceId });
   res.json(receipt);
@@ -149,7 +175,7 @@ router.post("/:id/proof", proofUpload.single("file"), async (req: Request, res: 
 
   await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },
-    data: { status: "PROOF_RECEIVED", proofReceivedAt: new Date() },
+    data: { status: "JUSTIFICANT_REBUT", proofReceivedAt: new Date() },
   });
 
   await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id as string));

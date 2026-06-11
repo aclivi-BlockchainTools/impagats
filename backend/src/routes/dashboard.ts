@@ -6,21 +6,21 @@ const router = Router();
 router.get("/", async (_req: Request, res: Response) => {
   const total = await prisma.returnedReceipt.count();
   const pending = await prisma.returnedReceipt.count({
-    where: { status: { in: ["DETECTED", "MATCHED", "NEEDS_REVIEW"] } },
+    where: { status: { in: ["DETECTAT", "EMPARELLAT", "REVISAR"] } },
   });
   const notified = await prisma.returnedReceipt.count({
-    where: { status: "NOTIFIED" },
+    where: { status: "NOTIFICAT" },
   });
   const proofPending = await prisma.paymentProof.count({
     where: { status: "RECEIVED" },
   });
   const closed = await prisma.returnedReceipt.count({
-    where: { status: "CLOSED" },
+    where: { status: "TANCAT" },
   });
 
   const pendingTotal = await prisma.returnedReceipt.aggregate({
     _sum: { returnedAmount: true },
-    where: { status: { notIn: ["CLOSED", "IGNORED", "PAYMENT_CONFIRMED"] } },
+    where: { status: { notIn: ["TANCAT", "IGNORAT", "PAGAMENT_CONFIRMAT"] } },
   });
 
   res.json({

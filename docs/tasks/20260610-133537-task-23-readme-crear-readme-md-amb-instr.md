@@ -209,12 +209,13 @@ Aquest README serveix com a documentació única perquè qualsevol persona pugui
 
 ## Estat
 
-Implementat: sí
-Verificat: sí
-Completat: sí
+Implementat: no
+Verificat: no
+Completat: no
 
 ## Notes
 
+- 2026-06-10 17:33: Commit 8df457f amb 26 fitxers. Afegides validació d'input, filtratge de fitxers, verificació webhook, CSV robust (metadata skip, DD/MM/YY dates, findColumn fix), extracció client del concepte DEV.REBUT, auto-creació de clients, càlcul període de servei (Valor), creació manual d'impagats, plantilla WhatsApp renovada, fix prefix + OpenWA, useApi useRef, Dockerfiles, .dockerignore → Implementat:no Verificat:no Completat:no
 - 2026-06-10 17:33: Backend tsc OK, frontend tsc OK, Docker builds OK, CSV import flow verificat amb dades reals
 - 2026-06-10 16:50: Modificat returnDetector per extreure data Valor del rawData, calcular període de servei (mes anterior a la data Valor), guardar-lo al camp notes del ReturnedReceipt (format "Període: Abril 2026"). Afegida visualització de notes i data emissió al detall d'impagat al frontend. → Implementat:sí Verificat:no Completat:no
 - 2026-06-10 16:23: Afegit endpoint POST /api/returned-receipts per crear impagats manuals (crea BankMovement placeholder). Afegit ReturnedReceiptForm.tsx amb selector de client, import, data, referència, motiu i notes. Afegida ruta /receipts/new i botó "Nou impagat" al llistat. → Implementat:sí Verificat:no Completat:no

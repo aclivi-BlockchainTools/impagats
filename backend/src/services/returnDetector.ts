@@ -82,7 +82,8 @@ export async function detectReturns(): Promise<number> {
             returnReason: concept.replace(/\s+/g, " ").trim(),
             receiptReference: ref,
             notes: servicePeriod ? `Període: ${servicePeriod}` : null,
-            status: "DETECTED",
+            servicePeriod: servicePeriod || null,
+            status: "DETECTAT",
           },
         });
         detected++;

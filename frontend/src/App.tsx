@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import ClientsList from "./pages/ClientsList";
 import ClientForm from "./pages/ClientForm";
@@ -13,8 +14,9 @@ import Settings from "./pages/Settings";
 
 function App() {
   return (
-    <Layout>
-      <Routes>
+    <ErrorBoundary>
+      <Layout>
+        <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/clients" element={<ClientsList />} />
         <Route path="/clients/new" element={<ClientForm />} />
@@ -29,6 +31,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </Layout>
+    </ErrorBoundary>
   );
 }
 

@@ -3,7 +3,7 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 
 export default function ClientsList() {
-  const { data: clients, loading, reload } = useApi(() => api.getClients());
+  const { data: clients, loading, error, reload } = useApi(() => api.getClients());
 
   const handleDelete = async (id: number) => {
     if (!confirm("Segur que vols eliminar aquest client?")) return;
@@ -12,6 +12,7 @@ export default function ClientsList() {
   };
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
+  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>

@@ -32,7 +32,10 @@ export const api = {
   deleteInvoice: (id: number) => request<void>(`/invoices/${id}`, { method: "DELETE" }),
 
   // Bank movements
-  getBankMovements: () => request<any[]>("/bank-movements"),
+  getBankMovements: (params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<any>(`/bank-movements${qs}`);
+  },
   importCsv: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -42,7 +45,7 @@ export const api = {
   // Returned receipts
   getReturnedReceipts: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<any[]>(`/returned-receipts${qs}`);
+    return request<any>(`/returned-receipts${qs}`);
   },
   getReturnedReceipt: (id: number) => request<any>(`/returned-receipts/${id}`),
   createReturnedReceipt: (data: any) => request<any>("/returned-receipts", { method: "POST", body: JSON.stringify(data) }),

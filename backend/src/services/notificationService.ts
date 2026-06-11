@@ -50,7 +50,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
     invoice_number: receipt.invoice?.invoiceNumber || "N/A",
     amount: receipt.returnedAmount.toFixed(2),
     receipt_reference: receipt.receiptReference || "",
-    service_period: (receipt.notes || "").replace("Període: ", ""),
+    service_period: receipt.servicePeriod || "",
     company_iban: companyIban,
     company_name: companyName,
   });
@@ -71,7 +71,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
   if (result.success) {
     await prisma.returnedReceipt.update({
       where: { id: receiptId },
-      data: { status: "NOTIFIED", notifiedAt: new Date() },
+      data: { status: "NOTIFICAT", notifiedAt: new Date() },
     });
     await auditLog("SEND_WHATSAPP", "ReturnedReceipt", receiptId);
   }

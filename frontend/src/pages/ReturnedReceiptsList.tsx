@@ -92,6 +92,7 @@ export default function ReturnedReceiptsList() {
               <th className="text-left p-3">Data dev.</th>
               <th className="text-left p-3">Client</th>
               <th className="text-left p-3">Núm. Factura</th>
+              <th className="text-left p-3">Motiu</th>
               <th className="text-left p-3">Notes</th>
               <th className="text-left p-3">Data emissió</th>
               <th className="text-right p-3">Import</th>
@@ -107,6 +108,7 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
                 <td className="p-3">{r.client?.name || "-"}</td>
                 <td className="p-3">{r.receiptReference || "-"}</td>
+                <td className="p-3 text-xs">{r.returnReason || "-"}</td>
                 <td className="p-3 text-sm">{r.notes || "-"}</td>
                 <td className="p-3 text-sm">{r.bankMovement?.rawData?.Valor || "-"}</td>
                 <td className="p-3 text-right">{r.returnedAmount.toFixed(2)} €</td>
@@ -146,9 +148,9 @@ export default function ReturnedReceiptsList() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={10} className="p-3 text-center text-gray-500">{search ? "Cap coincidència" : "Cap impagat"}</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search ? "Cap coincidència" : "Cap impagat"}</td></tr>}
             {receipts && filtered.length > 0 && (
-              <tr><td colSpan={10} className="p-3 text-right text-sm text-gray-500">
+              <tr><td colSpan={11} className="p-3 text-right text-sm text-gray-500">
                 Mostrant {filtered.length} de {receipts.total} — Pàg {receipts.page}
               </td></tr>
             )}

@@ -18,8 +18,9 @@ App web per gestionar impagats bancaris: importar moviments (CSV), detectar devo
 impagats/
 ├── docker-compose.yml
 ├── README.md
+├── CLAUDE.md                          ← aquest fitxer
 ├── docs/
-│   ├── context.md                    ← aquest fitxer
+│   ├── tasks/                         ← tasques (platform MCP)
 │   └── superpowers/
 │       ├── specs/2026-06-10-impagats-design.md
 │       └── plans/2026-06-10-impagats-plan.md
@@ -28,36 +29,42 @@ impagats/
 │   ├── .env                         ← DATABASE_URL, OPENWA_*, PORT
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── prisma/schema.prisma         ← 9 models
+│   ├── jest.config.js               ← Jest + ts-jest
+│   ├── prisma/
+│   │   ├── schema.prisma            ← 9 models
+│   │   └── migrations/
 │   └── src/
-│       ├── index.ts                 ← entry point
+│       ├── index.ts                 ← entry point (logger)
 │       ├── app.ts                   ← express() + routes
+│       ├── __tests__/               ← 3 suites, 20 tests
 │       ├── lib/
 │       │   ├── prisma.ts
 │       │   ├── config.ts
-│       │   └── validation.ts           ← whitelist d'input (pick)
+│       │   ├── logger.ts            ← pino structured logging
+│       │   └── validation.ts        ← whitelist d'input (pick)
 │       ├── middleware/
-│       │   ├── auditLog.ts
-│       │   └── errorHandler.ts
+│       │   ├── auditLog.ts          ← amb try/catch + logger
+│       │   └── errorHandler.ts      ← usa logger
 │       ├── connectors/
-│       │   ├── BankConnector.ts         ← interfície
+│       │   ├── BankConnector.ts     ← interfície
 │       │   ├── CaixaGuissonaConnector.ts ← placeholder
-│       │   └── OpenWAConnector.ts       ← sendMessage, testConnection, registerWebhook
+│       │   └── OpenWAConnector.ts   ← sendMessage, testConnection, registerWebhook
 │       ├── services/
 │       │   ├── csvImporter.ts
 │       │   ├── returnDetector.ts
-│       │   ├── matchingEngine.ts
+│       │   ├── matchingEngine.ts    ← resolveStatus (WhatsApp-aware)
 │       │   ├── reconciliation.ts
 │       │   └── notificationService.ts
 │       └── routes/
 │           ├── clients.ts
 │           ├── invoices.ts
-│           ├── bankMovements.ts
-│           ├── returnedReceipts.ts
+│           ├── bankMovements.ts     ← transacció Prisma a l'import
+│           ├── returnedReceipts.ts  ← paginació, creació manual
 │           ├── messages.ts
-│           ├── webhook.ts
+│           ├── webhook.ts           ← sense multer, suporta media
 │           ├── settings.ts
-│           └── dashboard.ts
+│           ├── dashboard.ts
+│           └── health.ts            ← GET /api/health
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
@@ -65,12 +72,13 @@ impagats/
     ├── vite.config.ts               ← proxy /api → localhost:3001
     └── src/
         ├── main.tsx
-        ├── App.tsx                  ← router
+        ├── App.tsx                  ← router + ErrorBoundary
         ├── index.css                ← Tailwind
         ├── lib/api.ts               ← client HTTP
         ├── hooks/useApi.ts          ← hook genèric
         ├── components/
         │   ├── Layout.tsx           ← sidebar + content
+        │   ├── ErrorBoundary.tsx    ← captura errors de render
         │   ├── StatusBadge.tsx
         │   └── StatsCard.tsx
         └── pages/
@@ -101,8 +109,17 @@ impagats/
 | **AppSettings** | key (PK), value |
 
 ### Estats de ReturnedReceipt
-`DETECTED → MATCHED → NOTIFIED → PROOF_RECEIVED → PAYMENT_CONFIRMED → CLOSED`
-(+ `NEEDS_REVIEW`, `IGNORED`)
+`DETECTAT → EMPARELLAT → NOTIFICAT → JUSTIFICANT_REBUT → PAGAMENT_CONFIRMAT → TANCAT`
+(+ `REVISAR`, `IGNORAT`)
+
+- **DETECTAT**: devolució trobada al CSV, pendent de matching
+- **EMPARELLAT**: client amb WhatsApp confirmat, llest per enviar missatge
+- **REVISAR**: cal revisió manual (auto-creat, sense WhatsApp, o match baix)
+- **NOTIFICAT**: WhatsApp enviat
+- **JUSTIFICANT_REBUT**: client ha respost amb comprovant
+- **PAGAMENT_CONFIRMAT**: transferència rebuda i conciliada
+- **TANCAT**: tancat manualment
+- **IGNORAT**: ignorat (fals positiu)
 
 ## Endpoints API
 
@@ -112,8 +129,8 @@ impagats/
 | `/api/clients/:id` | GET, PUT, DELETE |
 | `/api/invoices` | GET, POST |
 | `/api/invoices/:id` | GET, PUT, DELETE |
-| `/api/bank-movements` | GET (llistat), POST (import CSV) |
-| `/api/returned-receipts` | GET (filtres), POST (creació manual) |
+| `/api/bank-movements` | GET (paginat: ?page=&limit=), POST (import CSV) |
+| `/api/returned-receipts` | GET (filtres + paginat: ?page=&limit=), POST (creació manual) |
 | `/api/returned-receipts/:id` | GET, PUT (status) |
 | `/api/returned-receipts/:id/match` | POST (manual match) |
 | `/api/returned-receipts/:id/send-whatsapp` | POST |
@@ -124,7 +141,8 @@ impagats/
 | `/api/settings/register-webhook` | POST |
 | `/api/settings/webhooks` | GET |
 | `/api/dashboard` | GET |
-| `/api/openwa/webhook` | POST (rep missatges entrants) |
+| `/api/health` | GET (health check + DB) |
+| `/api/openwa/webhook` | POST (rep missatges entrants, JSON) |
 
 ## Pàgines del frontend
 
@@ -186,14 +204,27 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Columna "Valor" del CSV → data d'emissió del rebut original → període de servei = mes anterior
 - Detecció de devolucions: cerca paraules clau (DEV.REBUT, devolució...) + import negatiu
 - Matching: 1) núm. factura al concepte, 2) nom client extret del concepte, 3) import ±5%
-- Si no es troba client, es crea automàticament amb el nom extret del concepte
-- WhatsApp: número sense prefix "+" (OpenWA no l'accepta)
+- Si no es troba client, es crea automàticament → estat REVISAR (pendent de completar WhatsApp)
+- Client sense WhatsApp → REVISAR (no es pot enviar missatge). Només EMPARELLAT si té WhatsApp
+- WhatsApp: número sense prefix "+" ni sufix "@c.us" (OpenWA no els accepta)
 - WhatsApp sempre manual (no automàtic)
+- Import CSV dins d'una transacció Prisma ($transaction) per atomicitat
+- Paginació als GET de llistes: resposta `{ data, total, page, limit }`. Màxim 100 per pàgina
+- CORS restringit a localhost:5174 (dev) i configurable (CORS_ORIGIN) en prod
+- Uploads limitats: CSV 5MB, comprovants 10MB, JSON body 1MB
+- Webhook OpenWA rep JSON (no multipart), suporta media per URL/base64
+- Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, sense default)
+- Structured logging amb pino + pino-pretty en dev
+- Tests amb Jest + ts-jest. 20 tests en 3 suites (csvImporter, returnDetector, matchingEngine)
+- Frontend amb ErrorBoundary i estats d'error a totes les pàgines
 - Connector Caixa Guissona com a placeholder (no inventar endpoints)
 - Validació d'input: whitelist de camps permesos a cada ruta (pick())
 - Filtre de tipus MIME a uploads: CSV, imatges i PDF
-- Webhook verificat amb token secret per URL
-- Error handler: no exposa detalls interns en producció
+- Error handler: no exposa detalls interns en producció, usa logger
 - Secrets al .env, configuració no sensible a AppSettings
+- Health check: GET /api/health amb verificació de connexió a BD
+- Reconciliació: matches de confiança ≥0.8 → PAGAMENT_CONFIRMAT, 0.6-0.8 → REVISAR
+- Camp `servicePeriod` a ReturnedReceipt (auto-calculat al crear impagat manual amb data d'emissió)
 - Port 5433 per postgres (5432 ocupat per openwa-postgres)
 - Port 8080 per frontend producció (80 ocupat)
+- Estats traduïts al català

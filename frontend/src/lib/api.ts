@@ -58,6 +58,13 @@ export const api = {
     return fetch(BASE + `/returned-receipts/${id}/proof`, { method: "POST", body: formData }).then((r) => r.json());
   },
 
+  // Manual reply (agent override)
+  sendManualReply: (receiptId: number, text: string) =>
+    request<any>(`/returned-receipts/${receiptId}/reply`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+
   // Messages
   getMessages: (receiptId?: number) => request<any[]>(`/messages${receiptId ? `?receiptId=${receiptId}` : ""}`),
 

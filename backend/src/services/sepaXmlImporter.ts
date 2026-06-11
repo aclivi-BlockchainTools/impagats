@@ -51,7 +51,12 @@ function parseDate(dateStr: string): Date | null {
   // SEPA dates: YYYY-MM-DD
   const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) {
-    return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    const year = parseInt(m[1]);
+    const month = parseInt(m[2]);
+    const day = parseInt(m[3]);
+    // Validate ranges
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return new Date(year, month - 1, day);
   }
   return null;
 }
@@ -90,6 +95,15 @@ function parseBlock(block: string): SepaTransaction | null {
   const invoiceDate = parseInvoiceDate(ustrd);
   const creditorName = getNestedTag(block, "Cdtr", "Nm") || "";
 
+  // Format collection date as DD/MM/YY for display (Valor = receipt emission date)
+  let valorDate = "";
+  if (collectionDate) {
+    const d = collectionDate.getDate().toString().padStart(2, "0");
+    const m = (collectionDate.getMonth() + 1).toString().padStart(2, "0");
+    const y = collectionDate.getFullYear().toString().slice(-2);
+    valorDate = `${d}/${m}/${y}`;
+  }
+
   return {
     amount,
     collectionDate,
@@ -100,6 +114,7 @@ function parseBlock(block: string): SepaTransaction | null {
     endToEndId,
     mandateId,
     rawData: {
+      Valor: valorDate,
       invoiceNumber,
       invoiceDate,
       debtorName: debtorName.trim(),
@@ -174,7 +189,7 @@ export async function importSepaXml(xmlContent: string): Promise<{
         returnedAmount: tx.amount,
         returnDate: tx.collectionDate,
         returnReason: tx.rejectionCode,
-        receiptReference: tx.invoiceNumber || tx.endToEndId,
+        receiptReference: tx.invoiceNumber ? `Factura n: ${tx.invoiceNumber}` : tx.endToEndId,
         notes: servicePeriod ? `Període: ${servicePeriod}` : null,
         servicePeriod: servicePeriod || null,
         status: "DETECTAT",

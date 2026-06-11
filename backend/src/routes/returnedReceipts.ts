@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { sendWhatsApp } from "../services/notificationService";
 import { pick } from "../lib/validation";
+import { openwa } from "../connectors/OpenWAConnector";
 import multer from "multer";
 import path from "path";
 
@@ -180,6 +181,49 @@ router.post("/:id/proof", proofUpload.single("file"), async (req: Request, res: 
 
   await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id as string));
   res.status(201).json(proof);
+});
+
+// Manual reply endpoint — used when user wants to send a custom WhatsApp message
+router.post("/:id/reply", async (req: Request, res: Response) => {
+  const { text } = pick(req.body, ["text"]) as any;
+
+  if (!text || typeof text !== "string" || !text.trim()) {
+    return res.status(400).json({ error: "text requerit" });
+  }
+
+  const receipt = await prisma.returnedReceipt.findUnique({
+    where: { id: parseInt(req.params.id as string) },
+    include: { client: true },
+  });
+
+  if (!receipt) return res.status(404).json({ error: "Impagat no trobat" });
+  if (!receipt.client?.whatsapp) return res.status(400).json({ error: "Client sense WhatsApp" });
+
+  // Send manual reply
+  const result = await openwa.sendMessage(receipt.client.whatsapp, text.trim());
+
+  if (!result.success) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  // Save as OUTBOUND message (no agent fields — manual)
+  const message = await prisma.message.create({
+    data: {
+      receiptId: receipt.id,
+      direction: "OUTBOUND",
+      content: text.trim(),
+      externalId: result.externalId,
+    },
+  });
+
+  // Mark receipt as JUSTIFICANT_REBUT (user took control)
+  await prisma.returnedReceipt.update({
+    where: { id: receipt.id },
+    data: { status: "JUSTIFICANT_REBUT" },
+  });
+
+  await auditLog("MANUAL_REPLY", "ReturnedReceipt", receipt.id, { text: text.trim() });
+  res.json({ success: true, message });
 });
 
 export default router;

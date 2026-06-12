@@ -4,6 +4,8 @@
 
 App web per gestionar impagats bancaris: importar moviments (CSV), detectar devolucions de rebuts, relacionar-les amb clients i factures, i reclamar per WhatsApp via OpenWA.
 
+**Repo:** https://github.com/aclivi-BlockchainTools/impagats (privat)
+
 ## Stack
 
 - **Frontend**: React 18 + Vite 6 + Tailwind 3 + React Router 6 (port 5173, ara 5174)
@@ -138,6 +140,7 @@ impagats/
 | `/api/returned-receipts/:id/send-whatsapp` | POST |
 | `/api/returned-receipts/:id/reply` | POST (resposta manual, desactiva agent) |
 | `/api/returned-receipts/:id/simulate-agent` | POST (provar agent sense enviar) |
+| `/api/returned-receipts/:id/execute-agent` | POST (executar flux agent complet: classificar + WhatsApp + canvi estat) |
 | `/api/returned-receipts/:id/proof` | POST (upload fitxer) |
 | `/api/returned-receipts/send-bulk-whatsapp` | POST (missatge resum per N impagats del mateix client) |
 | `/api/returned-receipts/:id` | DELETE (esborra receipt + messages + proofs + matches) |
@@ -221,7 +224,10 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - CORS restringit a localhost:5174 (dev) i configurable (CORS_ORIGIN) en prod
 - Uploads limitats: CSV 5MB, comprovants 10MB, JSON body 1MB
 - Webhook OpenWA rep JSON (no multipart), suporta media per URL/base64
-- Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, sense default)
+- Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, "impagats-webhook-secret")
+- Webhook cerca rebuts en: NOTIFICAT, ESPERANT_DETALLS, DETECTAT, EMPARELLAT, REVISAR, JUSTIFICANT_REBUT
+- Agent només auto-respon en NOTIFICAT/ESPERANT_DETALLS; altres estats guarden missatge en silenci
+- .env conté OPENWA_BASE_URL, OPENWA_API_KEY i WEBHOOK_SECRET configurats
 - Structured logging amb pino + pino-pretty en dev
 - Tests amb Jest + ts-jest. 43 tests en 6 suites (csvImporter, returnDetector, matchingEngine, conversationAgent, health, clients)
 - Agent conversacional: classificació regex CAT/ES, 4 intencions (pagament_clar, pagament_ambigu, comprovant_enviat, altres_temes)
@@ -230,7 +236,8 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Agent: no respon si està desactivat (agent.enabled=false) o si el deutor ha estat redirigit
 - Agent: resposta sempre en català (plantilles fixes)
 - Agent: si falla → envia missatge de disculpa al deutor + marca REVISAR + [Agent error]
-- Agent: endpoint simulate-agent per provar què respondria sense enviar
+- Agent: endpoint simulate-agent (preview sense enviar) + execute-agent (flux complet real)
+- Agent: execute-agent és resilient — si WhatsApp falla, igualment guarda missatges i actualitza estat
 - Plantilla WhatsApp múltiple: {{receipts_list}} + {{total_amount}} (selecció N impagats → 1 missatge)
 - DELETE d'impagats: esborra en cascada (messages, proofs, reconciliationMatches)
 - Import SEPA XML (pain.002.001.03): extreu nom deutor, IBAN, import, data, núm. factura (de Ustrd), codi rebuig

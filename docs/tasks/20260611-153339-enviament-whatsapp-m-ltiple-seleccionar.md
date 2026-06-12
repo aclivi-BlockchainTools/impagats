@@ -64,6 +64,7 @@ Completat: sí
 
 ## Notes
 
+- 2026-06-12 08:14: Creat repo privat a github.com/aclivi-BlockchainTools/impagats. Pujats tots els commits (4) de la branca master amb backend, frontend, docs i config. → Implementat:sí Verificat:no Completat:no
 - 2026-06-11 16:55: Afegit endpoint POST /api/returned-receipts/:id/execute-agent que executa el flux complet real: desa INBOUND, classifica, envia WhatsApp, desa OUTBOUND amb metadata, actualitza estat. Afegit botó "Enviar resposta de l'agent per WhatsApp" al panell "Provar agent" del detall. → Implementat:sí Verificat:sí Completat:sí
 - 2026-06-11 16:49: Commit amb 38 fitxers: +1676/-930 línies. Missatge descriptiu amb totes les millores. → Implementat:no Verificat:no Completat:no
 - 2026-06-11 16:40: 7 fixes: 1) pagament_ambigu → ESPERANT_DETALLS, 2) altres_temes → REVISAR, 3) timeout actualitza l'estat, 4) agent.enabled es comprova al webhook, 5) errors de l'agent envien fallback al deutor + marquen REVISAR, 6) extractReference/Amount/Date millorats, 7) proofReceivedAt només per pagament_clar/comprovant → Implementat:sí Verificat:no Completat:no

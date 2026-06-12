@@ -32,7 +32,7 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
   const openReceipt = await prisma.returnedReceipt.findFirst({
     where: {
       clientId: client.id,
-      status: { in: ["NOTIFICAT", "ESPERANT_DETALLS", "DETECTAT", "EMPARELLAT", "REVISAR"] },
+      status: { in: ["NOTIFICAT", "ESPERANT_DETALLS", "DETECTAT", "EMPARELLAT", "REVISAR", "JUSTIFICANT_REBUT"] },
     },
     orderBy: { returnDate: "desc" },
   });

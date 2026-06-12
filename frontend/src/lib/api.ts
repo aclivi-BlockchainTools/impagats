@@ -75,6 +75,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text, hasMedia }),
     }),
+  executeAgent: (receiptId: number, text: string) =>
+    request<any>(`/returned-receipts/${receiptId}/execute-agent`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
   deleteReturnedReceipt: (id: number) => request<void>(`/returned-receipts/${id}`, { method: "DELETE" }),
 
   // Messages

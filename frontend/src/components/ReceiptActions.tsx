@@ -14,6 +14,7 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
   const [replying, setReplying] = useState(false);
   const [simulateText, setSimulateText] = useState("");
   const [simulating, setSimulating] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [simulateResult, setSimulateResult] = useState<any>(null);
 
   const handleSendWhatsApp = async () => {
@@ -54,6 +55,23 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
       setSimulateResult(result);
     } catch (err: any) { alert(err.message); }
     setSimulating(false);
+  };
+
+  const handleExecuteAgent = async () => {
+    if (!simulateText.trim()) return;
+    setExecuting(true);
+    try {
+      const result = await api.executeAgent(receipt.id, simulateText.trim());
+      const label = intentLabels[result.intent] || result.intent;
+      const waMsg = result.whatsappSent
+        ? "WhatsApp enviat."
+        : `WhatsApp no enviat: ${result.whatsappError || "OpenWA no accessible"}. Però l'agent ha processat la resposta.`;
+      alert(`Agent: ${label} → ${result.action}\n${waMsg}`);
+      setSimulateText("");
+      setSimulateResult(null);
+      onReload();
+    } catch (err: any) { alert(err.message); }
+    setExecuting(false);
   };
 
   const intentLabels: Record<string, string> = {
@@ -160,6 +178,13 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
                   {simulateResult.replyText}
                 </div>
               </div>
+              <button
+                onClick={handleExecuteAgent}
+                disabled={executing || !receipt.client?.whatsapp}
+                className="w-full bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+              >
+                {executing ? "Enviant..." : "Enviar resposta de l'agent per WhatsApp"}
+              </button>
             </div>
           )}
         </div>

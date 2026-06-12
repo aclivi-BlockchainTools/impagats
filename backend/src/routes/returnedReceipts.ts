@@ -196,6 +196,96 @@ router.post("/:id/simulate-agent", asyncHandler(async (req: Request, res: Respon
   });
 }));
 
+// Execute agent — runs the full agent flow and sends the reply via WhatsApp
+router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Response) => {
+  const { text } = req.body;
+  if (!text || typeof text !== "string") {
+    return res.status(400).json({ error: "text requerit" });
+  }
+
+  const receipt = await prisma.returnedReceipt.findUnique({
+    where: { id: parseInt(req.params.id as string) },
+    include: { client: true },
+  });
+
+  if (!receipt) return res.status(404).json({ error: "Impagat no trobat" });
+  if (!receipt.client) return res.status(400).json({ error: "Sense client assignat" });
+  if (!receipt.client.whatsapp) return res.status(400).json({ error: "Client sense WhatsApp" });
+
+  // Save the simulated INBOUND message
+  await prisma.message.create({
+    data: {
+      receiptId: receipt.id,
+      direction: "INBOUND",
+      content: text.trim(),
+    },
+  });
+
+  // Run agent
+  const result = await handleIncomingMessage(
+    text.trim(),
+    false,
+    receipt.id,
+    receipt.client.name,
+  );
+
+  // Send agent reply via WhatsApp (non-blocking — agent result is valid even if send fails)
+  let sendResult: { success: boolean; error?: string } = { success: false, error: "No intentat" };
+  try {
+    sendResult = await openwa.sendMessage(receipt.client.whatsapp, result.replyText);
+  } catch (err: any) {
+    sendResult = { success: false, error: err.message };
+  }
+
+  // Save agent OUTBOUND message (always, even if send failed)
+  await prisma.message.create({
+    data: {
+      receiptId: receipt.id,
+      direction: "OUTBOUND",
+      content: result.replyText,
+      status: sendResult.success ? "sent" : "failed",
+      agentIntent: result.intent,
+      agentAction: result.action,
+      agentMetadata: result.metadata,
+      needsReview: result.intent === "altres_temes",
+    },
+  });
+
+  // Update receipt status
+  const updateData: any = {};
+  if (result.receiptNewStatus) {
+    updateData.status = result.receiptNewStatus;
+    if (result.intent === "pagament_clar" || result.intent === "comprovant_enviat") {
+      updateData.proofReceivedAt = new Date();
+    }
+  }
+  const currentNotes = receipt.notes || "";
+  const conversationNote = `[Agent: ${result.intent} → ${result.action}]`;
+  updateData.notes = currentNotes ? `${currentNotes} ${conversationNote}` : conversationNote;
+
+  await prisma.returnedReceipt.update({
+    where: { id: receipt.id },
+    data: updateData,
+  });
+
+  await auditLog("EXECUTE_AGENT", "ReturnedReceipt", receipt.id, {
+    intent: result.intent,
+    action: result.action,
+    sent: sendResult.success,
+  });
+
+  res.json({
+    success: true,
+    whatsappSent: sendResult.success,
+    whatsappError: sendResult.error,
+    intent: result.intent,
+    action: result.action,
+    replyText: result.replyText,
+    receiptNewStatus: result.receiptNewStatus,
+    metadata: result.metadata,
+  });
+}));
+
 router.post("/send-bulk-whatsapp", asyncHandler(async (req: Request, res: Response) => {
   const { receiptIds } = req.body;
   if (!receiptIds || !Array.isArray(receiptIds) || receiptIds.length < 2) {

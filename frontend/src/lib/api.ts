@@ -1,10 +1,32 @@
+export function formatAmount(amount: any, decimals = 2): string {
+  const n = typeof amount === "string" ? parseFloat(amount) : amount;
+  return (isNaN(n) ? 0 : n).toFixed(decimals);
+}
+
 const BASE = "/api";
 
+function getToken(): string | null {
+  return localStorage.getItem("auth_token");
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (!(options?.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const res = await fetch(BASE + url, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options,
   });
+  if (res.status === 401) {
+    localStorage.removeItem("auth_token");
+    window.location.href = "/login";
+    throw new Error("Sessió expirada");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Error de xarxa" }));
     throw new Error(err.error || `HTTP ${res.status}`);
@@ -91,4 +113,32 @@ export const api = {
   // Settings
   getSettings: () => request<Record<string, string>>("/settings"),
   updateSettings: (data: Record<string, string>) => request<any>("/settings", { method: "PUT", body: JSON.stringify(data) }),
+
+  // Auth
+  login: (email: string, password: string): Promise<{ token: string; email: string }> => {
+    return fetch(BASE + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }).then((r) => {
+      if (!r.ok) return r.json().then((e) => { throw new Error(e.error || "Credencials invàlides"); });
+      return r.json();
+    });
+  },
+  getMe: () => request<{ email: string; authenticated: boolean }>("/auth/me"),
+
+  // Outbox
+  getOutbox: (params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<any>(`/outbox${qs}`);
+  },
+  getOutboxStats: () => request<any>("/outbox/stats"),
+  processOutbox: () => request<any>("/outbox/process", { method: "POST" }),
+  retryOutbox: (id: number) => request<any>(`/outbox/${id}/retry`, { method: "POST" }),
+  cancelOutbox: (id: number) => request<any>(`/outbox/${id}/cancel`, { method: "POST" }),
+
+  // Case notes
+  getCaseNotes: (receiptId: number) => request<any[]>(`/case-notes/${receiptId}/notes`),
+  addCaseNote: (receiptId: number, body: string) => request<any>(`/case-notes/${receiptId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  getStatusHistory: (receiptId: number) => request<any[]>(`/case-notes/${receiptId}/history`),
 };

@@ -1,5 +1,10 @@
 import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
+import { recordStatusChange } from "./statusHistory";
+
+// Llindars de confiança
+const HIGH_CONFIDENCE = 0.9;   // Auto-emparellar
+const LOW_CONFIDENCE = 0.4;    // Crear match candidate + REVISAR
 
 function extractClientName(concept: string): string | null {
   const c = concept.trim();
@@ -48,6 +53,26 @@ function nameMatchScore(extractedName: string, clientName: string): number {
   return 0;
 }
 
+// Crea un MatchCandidate per deixar constància de l'scoring
+async function createCandidate(
+  tx: TxClient,
+  receiptId: number,
+  score: number,
+  reason: string,
+  clientId?: number,
+  invoiceId?: number,
+): Promise<void> {
+  await tx.matchCandidate.create({
+    data: {
+      receiptId,
+      clientId: clientId || null,
+      invoiceId: invoiceId || null,
+      score,
+      reason,
+    },
+  });
+}
+
 export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Promise<void> {
   const receipt = await tx.returnedReceipt.findUnique({
     where: { id: receiptId },
@@ -56,6 +81,7 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
   if (!receipt || !["DETECTAT", "REVISAR"].includes(receipt.status)) return;
 
   const concept = receipt.receiptReference || receipt.returnReason || "";
+  const receiptAmount = Number(receipt.returnedAmount);
 
   // 1. Try matching by invoice number in concept (4+ digit numbers)
   const refMatch = concept.match(/[\d]{4,}/);
@@ -66,6 +92,8 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
     });
     if (invoice) {
       const status = resolveStatus(invoice.client);
+      const score = 1.0;
+      await createCandidate(tx, receiptId, score, `Invoice number match: ${refMatch[0]}`, invoice.clientId, invoice.id);
       await tx.returnedReceipt.update({
         where: { id: receiptId },
         data: { invoiceId: invoice.id, clientId: invoice.clientId, status },
@@ -89,16 +117,18 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
       }
     }
 
-    if (bestClient && bestScore >= 0.7) {
+    // Auto-emparellar si score >= 0.9
+    if (bestClient && bestScore >= HIGH_CONFIDENCE) {
       const status = resolveStatus(bestClient);
       const invoicesByAmount = await tx.invoice.findMany({
         where: {
           clientId: bestClient.id,
-          amount: { gte: receipt.returnedAmount * 0.95, lte: receipt.returnedAmount * 1.05 },
+          amount: { gte: receiptAmount * 0.95, lte: receiptAmount * 1.05 },
         },
       });
 
       if (invoicesByAmount.length === 1) {
+        await createCandidate(tx, receiptId, bestScore, `Name match: "${extractedName}" ≈ "${bestClient.name}"`, bestClient.id, invoicesByAmount[0].id);
         await tx.returnedReceipt.update({
           where: { id: receiptId },
           data: {
@@ -110,6 +140,7 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
         return;
       }
 
+      await createCandidate(tx, receiptId, bestScore, `Name match: "${extractedName}" ≈ "${bestClient.name}"`, bestClient.id);
       await tx.returnedReceipt.update({
         where: { id: receiptId },
         data: { clientId: bestClient.id, status },
@@ -117,7 +148,9 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
       return;
     }
 
-    if (bestClient && bestScore >= 0.4) {
+    // Score 0.4-0.89 → crear candidat + REVISAR
+    if (bestClient && bestScore >= LOW_CONFIDENCE) {
+      await createCandidate(tx, receiptId, bestScore, `Fuzzy name match: "${extractedName}" ≈ "${bestClient.name}"`, bestClient.id);
       await tx.returnedReceipt.update({
         where: { id: receiptId },
         data: { clientId: bestClient.id, status: "REVISAR" },
@@ -125,27 +158,30 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
       return;
     }
 
-    if (!bestClient || bestScore < 0.4) {
+    // Score < 0.4 → auto-crear client + REVISAR
+    if (!bestClient || bestScore < LOW_CONFIDENCE) {
       const displayName = extractedName.replace(/\b\w/g, (c) => c.toUpperCase());
       const newClient = await tx.client.create({
         data: { name: displayName },
       });
+      await createCandidate(tx, receiptId, 0, `Auto-created client: "${displayName}"`, newClient.id);
       await tx.returnedReceipt.update({
         where: { id: receiptId },
         data: { clientId: newClient.id, status: "REVISAR" },
       });
-      return;
     }
+    return;
   }
 
   // 3. Matching per import (±5%)
   const invoicesByAmount = await tx.invoice.findMany({
-    where: { amount: { gte: receipt.returnedAmount * 0.95, lte: receipt.returnedAmount * 1.05 } },
+    where: { amount: { gte: receiptAmount * 0.95, lte: receiptAmount * 1.05 } },
     include: { client: true },
   });
 
   if (invoicesByAmount.length === 1) {
     const status = resolveStatus(invoicesByAmount[0].client);
+    await createCandidate(tx, receiptId, 0.8, "Amount match (±5%) with single invoice", invoicesByAmount[0].clientId, invoicesByAmount[0].id);
     await tx.returnedReceipt.update({
       where: { id: receiptId },
       data: {
@@ -158,6 +194,7 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
   }
 
   if (invoicesByAmount.length > 1) {
+    await createCandidate(tx, receiptId, 0.5, `Amount match (±5%) with ${invoicesByAmount.length} invoices`, undefined, undefined);
     await tx.returnedReceipt.update({
       where: { id: receiptId },
       data: { status: "REVISAR" },

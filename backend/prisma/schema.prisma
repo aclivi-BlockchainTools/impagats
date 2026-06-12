@@ -29,7 +29,7 @@ model Invoice {
   invoiceNumber String
   date          DateTime
   dueDate       DateTime?
-  amount        Float
+  amount        Decimal  @db.Decimal(10, 2)
   status        String   @default("pending")
   externalRef   String?
   createdAt     DateTime @default(now())
@@ -39,19 +39,39 @@ model Invoice {
   returnedReceipts ReturnedReceipt[]
 }
 
-model BankMovement {
-  id        Int      @id @default(autoincrement())
-  rawData   Json
-  concept   String?
-  amount    Float
-  date      DateTime
-  reference String?
-  iban      String?
-  isReturn  Boolean  @default(false)
-  createdAt DateTime @default(now())
+model ImportBatch {
+  id           Int      @id @default(autoincrement())
+  type         String
+  filename     String?
+  totalRows    Int      @default(0)
+  importedRows Int      @default(0)
+  skippedRows  Int      @default(0)
+  errorRows    Int      @default(0)
+  errors       Json?
+  createdAt    DateTime @default(now())
 
-  returnedReceipts      ReturnedReceipt[]
+  movements BankMovement[]
+}
+
+model BankMovement {
+  id            Int      @id @default(autoincrement())
+  importBatchId Int?
+  importHash    String?
+  rawData       Json
+  concept       String?
+  amount        Decimal  @db.Decimal(10, 2)
+  date          DateTime
+  reference     String?
+  iban          String?
+  isReturn      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  importBatch          ImportBatch?           @relation(fields: [importBatchId], references: [id])
+  returnedReceipts     ReturnedReceipt[]
   reconciliationMatches ReconciliationMatch[]
+  matchCandidates      MatchCandidate[]
+
+  @@unique([importHash])
 }
 
 model ReturnedReceipt {
@@ -60,7 +80,7 @@ model ReturnedReceipt {
   invoiceId           Int?
   bankMovementId      Int
   receiptReference    String?
-  returnedAmount      Float
+  returnedAmount      Decimal   @db.Decimal(10, 2)
   returnDate          DateTime
   returnReason        String?
   status              String    @default("DETECTAT")
@@ -74,12 +94,16 @@ model ReturnedReceipt {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  client        Client?        @relation(fields: [clientId], references: [id])
-  invoice       Invoice?       @relation(fields: [invoiceId], references: [id])
-  bankMovement  BankMovement   @relation(fields: [bankMovementId], references: [id])
-  messages      Message[]
-  proofs        PaymentProof[]
-  reconciliation ReconciliationMatch[]
+  client             Client?             @relation(fields: [clientId], references: [id])
+  invoice            Invoice?            @relation(fields: [invoiceId], references: [id])
+  bankMovement       BankMovement        @relation(fields: [bankMovementId], references: [id])
+  messages           Message[]
+  proofs             PaymentProof[]
+  reconciliation     ReconciliationMatch[]
+  statusHistory      ReturnedReceiptStatusHistory[]
+  caseNotes          CaseNote[]
+  matchCandidates    MatchCandidate[]
+  whatsappOutbox     WhatsappOutbox[]
 }
 
 model Message {
@@ -97,30 +121,94 @@ model Message {
   needsReview   Boolean   @default(false)
 
   receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+  proofs  PaymentProof[]
 }
 
 model PaymentProof {
-  id         Int       @id @default(autoincrement())
-  receiptId   Int
-  filePath   String
-  status     String    @default("RECEIVED")
-  receivedAt DateTime  @default(now())
-  notes      String?
+  id               Int       @id @default(autoincrement())
+  receiptId         Int
+  messageId         Int?
+  originalName      String?
+  mimeType          String?
+  sizeBytes         Int?
+  sha256            String?
+  storagePath       String
+  status            String    @default("RECEIVED")
+  receivedAt        DateTime  @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+  notes             String?
 
   receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+  message Message?        @relation(fields: [messageId], references: [id])
 }
 
 model ReconciliationMatch {
   id              Int       @id @default(autoincrement())
   receiptId        Int
   bankMovementId   Int
-  amount          Float
+  amount          Decimal   @db.Decimal(10, 2)
   matchedAt       DateTime  @default(now())
   confidence      Float     @default(1.0)
   manual          Boolean   @default(false)
 
   receipt       ReturnedReceipt @relation(fields: [receiptId], references: [id])
   bankMovement  BankMovement    @relation(fields: [bankMovementId], references: [id])
+}
+
+model MatchCandidate {
+  id         Int      @id @default(autoincrement())
+  receiptId   Int
+  bankMovementId Int?
+  clientId    Int?
+  invoiceId   Int?
+  score       Float
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  receipt      ReturnedReceipt @relation(fields: [receiptId], references: [id])
+  bankMovement BankMovement?   @relation(fields: [bankMovementId], references: [id])
+}
+
+model WhatsappOutbox {
+  id          Int       @id @default(autoincrement())
+  receiptId    Int
+  clientId     Int?
+  phone        String
+  message      String
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(3)
+  lastError    String?
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+}
+
+model ReturnedReceiptStatusHistory {
+  id         Int      @id @default(autoincrement())
+  receiptId   Int
+  fromStatus  String?
+  toStatus    String
+  reason      String?
+  actorType   String   @default("SYSTEM")
+  actorId     String?
+  createdAt   DateTime @default(now())
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+}
+
+model CaseNote {
+  id         Int      @id @default(autoincrement())
+  receiptId   Int
+  author      String?
+  body        String
+  createdAt   DateTime @default(now())
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
 }
 
 model AuditLog {

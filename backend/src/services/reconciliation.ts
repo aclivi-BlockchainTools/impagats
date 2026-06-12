@@ -1,5 +1,6 @@
 import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
+import { recordStatusChange } from "./statusHistory";
 
 export async function reconcileNewMovements(tx: TxClient = prisma): Promise<number> {
   const openReceipts = await tx.returnedReceipt.findMany({
@@ -20,10 +21,12 @@ export async function reconcileNewMovements(tx: TxClient = prisma): Promise<numb
   for (const mv of unreconciledMovements) {
     for (const receipt of openReceipts) {
       const amountTolerance = 0.05;
-      const minAmount = receipt.returnedAmount * (1 - amountTolerance);
-      const maxAmount = receipt.returnedAmount * (1 + amountTolerance);
+      const receiptAmount = Number(receipt.returnedAmount);
+      const mvAmount = Number(mv.amount);
+      const minAmount = receiptAmount * (1 - amountTolerance);
+      const maxAmount = receiptAmount * (1 + amountTolerance);
 
-      if (mv.amount >= minAmount && mv.amount <= maxAmount) {
+      if (mvAmount >= minAmount && mvAmount <= maxAmount) {
         let confidence = 0.6;
 
         if (receipt.client && mv.concept) {
@@ -34,6 +37,8 @@ export async function reconcileNewMovements(tx: TxClient = prisma): Promise<numb
         }
 
         const isHighConfidence = confidence >= 0.8;
+        const oldStatus = receipt.status;
+        const newStatus = isHighConfidence ? "PAGAMENT_CONFIRMAT" : "REVISAR";
 
         await tx.reconciliationMatch.create({
           data: {
@@ -49,6 +54,14 @@ export async function reconcileNewMovements(tx: TxClient = prisma): Promise<numb
           data: isHighConfidence
             ? { status: "PAGAMENT_CONFIRMAT", paymentConfirmedAt: new Date() }
             : { status: "REVISAR" },
+        });
+
+        await recordStatusChange({
+          receiptId: receipt.id,
+          fromStatus: oldStatus,
+          toStatus: newStatus,
+          reason: `Conciliació automàtica (confiança: ${confidence.toFixed(2)})`,
+          actorType: "SYSTEM",
         });
 
         matched++;

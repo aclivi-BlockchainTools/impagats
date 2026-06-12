@@ -16,13 +16,16 @@ router.get("/", asyncHandler(async (_req: Request, res: Response) => {
   const sums: Record<string, number> = {};
   for (const g of grouped) {
     counts[g.status] = g._count.id;
-    sums[g.status] = g._sum.returnedAmount || 0;
+    sums[g.status] = g._sum.returnedAmount ? Number(g._sum.returnedAmount) : 0;
   }
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const pending = (counts["DETECTAT"] || 0) + (counts["EMPARELLAT"] || 0) + (counts["REVISAR"] || 0);
   const notified = counts["NOTIFICAT"] || 0;
-  const closed = counts["TANCAT"] || 0;
+  const closed = (counts["TANCAT"] || 0) + (counts["PAGAMENT_CONFIRMAT"] || 0);
+  const waitingProof = (counts["ESPERANT_JUSTIFICANT"] || 0);
+  const paymentClaimed = (counts["PAGAMENT_DECLARAT"] || 0) + (counts["PENDENT_REVISIO"] || 0);
+  const whatsappError = counts["ERROR_WHATSAPP"] || 0;
 
   const proofPending = await prisma.paymentProof.count({ where: { status: "RECEIVED" } });
 
@@ -38,7 +41,11 @@ router.get("/", asyncHandler(async (_req: Request, res: Response) => {
     proofPending,
     closed,
     pendingAmount,
+    waitingProof,
+    paymentClaimed,
+    whatsappError,
   });
+
 }));
 
 router.get("/debtors", asyncHandler(async (_req: Request, res: Response) => {
@@ -64,7 +71,7 @@ router.get("/debtors", asyncHandler(async (_req: Request, res: Response) => {
       };
     }
     grouped[cid].receipts.push(r);
-    grouped[cid].totalAmount += r.returnedAmount;
+    grouped[cid].totalAmount += Number(r.returnedAmount);
     if (r.servicePeriod && !grouped[cid].periods.includes(r.servicePeriod)) {
       grouped[cid].periods.push(r.servicePeriod);
     }

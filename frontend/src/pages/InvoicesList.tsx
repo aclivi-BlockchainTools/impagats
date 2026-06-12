@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api } from "../lib/api";
+import { api, formatAmount } from "../lib/api";
 
 export default function InvoicesList() {
   const { data: invoices, loading, error, reload } = useApi(() => api.getInvoices());
@@ -82,7 +82,7 @@ export default function InvoicesList() {
                 <td className="p-3">{inv.invoiceNumber}</td>
                 <td className="p-3">{inv.client?.name || "-"}</td>
                 <td className="p-3">{new Date(inv.date).toLocaleDateString("ca-ES")}</td>
-                <td className="p-3 text-right">{inv.amount.toFixed(2)} €</td>
+                <td className="p-3 text-right">{formatAmount(inv.amount)} €</td>
                 <td className="p-3">{inv.status}</td>
                 <td className="p-3 text-right space-x-2">
                   <Link to={`/invoices/${inv.id}`} className="text-blue-600 hover:underline">Editar</Link>

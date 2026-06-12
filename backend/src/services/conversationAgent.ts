@@ -167,7 +167,7 @@ function extractDate(text: string): string | null {
   return m ? m[1] : null;
 }
 
-// Called from webhook when an INBOUND message arrives for a receipt in NOTIFICAT/ESPERANT_DETALLS
+// Called from webhook when an INBOUND message arrives for a receipt in NOTIFICAT/ESPERANT_JUSTIFICANT
 export async function handleIncomingMessage(
   messageText: string,
   hasMedia: boolean,
@@ -188,7 +188,7 @@ export async function handleIncomingMessage(
   if (classification.intent === "pagament_clar" || classification.intent === "comprovant_enviat") {
     receiptNewStatus = "JUSTIFICANT_REBUT";
   } else if (classification.intent === "pagament_ambigu") {
-    receiptNewStatus = "ESPERANT_DETALLS";
+    receiptNewStatus = "ESPERANT_JUSTIFICANT";
   } else if (classification.intent === "altres_temes") {
     receiptNewStatus = "REVISAR";
   }
@@ -202,7 +202,7 @@ export async function handleIncomingMessage(
   };
 }
 
-// Check and handle timeout for ESPERANT_DETALLS
+// Check and handle timeout for ESPERANT_JUSTIFICANT
 export async function checkConversationTimeout(receiptId: number): Promise<boolean> {
   const settings = await prisma.appSettings.findMany();
   const timeoutSetting = settings.find((s) => s.key === "agent.timeout_hores");
@@ -224,7 +224,7 @@ export async function checkConversationTimeout(receiptId: number): Promise<boole
   // Update receipt to REVISAR when timeout so user gets notified
   if (timedOut) {
     const receipt = await prisma.returnedReceipt.findUnique({ where: { id: receiptId } });
-    if (receipt && receipt.status === "ESPERANT_DETALLS") {
+    if (receipt && receipt.status === "ESPERANT_JUSTIFICANT") {
       const currentNotes = receipt.notes || "";
       await prisma.returnedReceipt.update({
         where: { id: receiptId },

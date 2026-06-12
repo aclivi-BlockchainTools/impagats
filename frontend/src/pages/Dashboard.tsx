@@ -2,10 +2,12 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { Link } from "react-router-dom";
 import StatsCard from "../components/StatsCard";
+import WorkTray from "../components/WorkTray";
 
 export default function Dashboard() {
   const { data, loading, error } = useApi(() => api.getDashboard());
   const { data: debtors } = useApi(() => api.getDashboardDebtors());
+  const { data: receiptsData } = useApi(() => api.getReturnedReceipts({ limit: "100" }));
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
@@ -16,12 +18,15 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <StatsCard label="Impagats pendents" value={data.pending} color="bg-yellow-50" />
-        <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`} color="bg-red-50" />
-        <StatsCard label="Avisats sense resposta" value={data.notified} color="bg-purple-50" />
-        <StatsCard label="Justificants pendents" value={data.proofPending} color="bg-blue-50" />
-        <StatsCard label="Tancats" value={data.closed} color="bg-green-50" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatsCard label="Pendents revisió" value={data.pending} color="bg-yellow-50" />
+        <StatsCard label="Notificats" value={data.notified} color="bg-purple-50" />
+        <StatsCard label="Amb justificant" value={data.proofPending} color="bg-teal-50" />
+        <StatsCard label="Tancats / Confirmats" value={data.closed} color="bg-green-50" />
+        <StatsCard label="Esperant justificant" value={data.waitingProof || 0} color="bg-amber-50" />
+        <StatsCard label="Pagament declarat" value={data.paymentClaimed || 0} color="bg-rose-50" />
+        <StatsCard label="Error WhatsApp" value={data.whatsappError || 0} color="bg-red-50" />
+        <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`} color="bg-blue-50" />
       </div>
 
       <h2 className="text-xl font-bold mb-4">Deutors pendents</h2>
@@ -60,6 +65,8 @@ export default function Dashboard() {
           </tbody>
         </table>
       </div>
+
+      <WorkTray receipts={receiptsData?.data || []} />
     </div>
   );
 }

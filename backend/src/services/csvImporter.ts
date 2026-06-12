@@ -1,6 +1,8 @@
 import { parse } from "csv-parse/sync";
+import crypto from "crypto";
 import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 interface CsvRow {
   [key: string]: string;
@@ -84,6 +86,18 @@ function parseAmount(val: string | undefined): number {
   return parseFloat(cleaned) || 0;
 }
 
+// Genera hash estable per evitar duplicats
+function computeImportHash(date: Date, amount: number, concept: string, reference?: string, iban?: string): string {
+  const stable = [
+    date.toISOString().split("T")[0],
+    amount.toFixed(2),
+    concept.trim().toLowerCase(),
+    (reference || "").trim().toLowerCase(),
+    (iban || "").trim().replace(/\s/g, ""),
+  ].join("|");
+  return crypto.createHash("sha256").update(stable).digest("hex").substring(0, 32);
+}
+
 // Import from file path (standalone call)
 export async function importCsv(filePath: string): Promise<{ imported: number; skipped: number }> {
   const fs = await import("fs");
@@ -95,7 +109,8 @@ export async function importCsv(filePath: string): Promise<{ imported: number; s
 export async function importCsvContent(
   content: string,
   tx: TxClient = prisma,
-): Promise<{ imported: number; skipped: number }> {
+  batchId?: number,
+): Promise<{ imported: number; skipped: number; errors: string[] }> {
   content = skipMetadataRows(content);
   const rows: CsvRow[] = parse(content, {
     columns: true,
@@ -106,6 +121,7 @@ export async function importCsvContent(
 
   let imported = 0;
   let skipped = 0;
+  const errors: string[] = [];
 
   for (const row of rows) {
     const concept = getValue(row, COLUMN_ALIASES.concept) || "";
@@ -116,17 +132,34 @@ export async function importCsvContent(
 
     if (!concept || !dateStr || isNaN(amount)) {
       skipped++;
+      errors.push(`Fila invàlida: concepte="${concept}", data="${dateStr}", import=${amount}`);
       continue;
     }
 
     const date = parseDate(dateStr);
     if (!date) {
       skipped++;
+      errors.push(`Data no parsejable: ${dateStr}`);
+      continue;
+    }
+
+    // Generar hash i comprovar duplicats
+    const importHash = computeImportHash(date, amount, concept, reference, iban);
+
+    const existing = await tx.bankMovement.findFirst({
+      where: { importHash },
+    });
+
+    if (existing) {
+      skipped++;
+      logger.debug({ importHash, concept }, "CSV: moviment duplicat, saltant");
       continue;
     }
 
     await tx.bankMovement.create({
       data: {
+        importBatchId: batchId || null,
+        importHash,
         rawData: row as any,
         concept,
         amount,
@@ -138,5 +171,6 @@ export async function importCsvContent(
     imported++;
   }
 
-  return { imported, skipped };
+  logger.info({ imported, skipped, errors: errors.length }, "CSV: importació completada");
+  return { imported, skipped, errors };
 }

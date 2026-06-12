@@ -12,6 +12,7 @@ jest.mock("../lib/prisma", () => ({
     bankMovement: {
       create: (...args: any[]) => mockCreate(...args),
       findMany: (...args: any[]) => mockFindMany(...args),
+      findFirst: jest.fn().mockResolvedValue(null),
       update: (...args: any[]) => mockUpdate(...args),
       count: jest.fn().mockResolvedValue(0),
     },

@@ -11,26 +11,32 @@ import ReturnedReceiptsList from "./pages/ReturnedReceiptsList";
 import ReturnedReceiptForm from "./pages/ReturnedReceiptForm";
 import ReturnedReceiptDetail from "./pages/ReturnedReceiptDetail";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
 
 function App() {
   return (
     <ErrorBoundary>
-      <Layout>
-        <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/clients" element={<ClientsList />} />
-        <Route path="/clients/new" element={<ClientForm />} />
-        <Route path="/clients/:id" element={<ClientForm />} />
-        <Route path="/invoices" element={<InvoicesList />} />
-        <Route path="/invoices/new" element={<InvoiceForm />} />
-        <Route path="/invoices/:id" element={<InvoiceForm />} />
-        <Route path="/import" element={<BankImport />} />
-        <Route path="/receipts" element={<ReturnedReceiptsList />} />
-        <Route path="/receipts/new" element={<ReturnedReceiptForm />} />
-        <Route path="/receipts/:id" element={<ReturnedReceiptDetail />} />
-        <Route path="/settings" element={<Settings />} />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/clients" element={<ClientsList />} />
+              <Route path="/clients/new" element={<ClientForm />} />
+              <Route path="/clients/:id" element={<ClientForm />} />
+              <Route path="/invoices" element={<InvoicesList />} />
+              <Route path="/invoices/new" element={<InvoiceForm />} />
+              <Route path="/invoices/:id" element={<InvoiceForm />} />
+              <Route path="/import" element={<BankImport />} />
+              <Route path="/receipts" element={<ReturnedReceiptsList />} />
+              <Route path="/receipts/new" element={<ReturnedReceiptForm />} />
+              <Route path="/receipts/:id" element={<ReturnedReceiptDetail />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Layout>
+        } />
       </Routes>
-    </Layout>
     </ErrorBoundary>
   );
 }

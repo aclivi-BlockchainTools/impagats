@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
+import { formatAmount } from "../lib/api";
 
 export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -90,8 +91,14 @@ export default function ReturnedReceiptsList() {
   const selectedReceipts = filtered.filter((r: any) => selected.has(r.id));
   const sameClient = selected.size >= 2 && new Set(selectedReceipts.map((r: any) => r.clientId)).size === 1;
   const canSend = sameClient && selectedReceipts.every((r: any) =>
-    ["DETECTAT", "EMPARELLAT", "REVISAR", "NOTIFICAT"].includes(r.status)
+    ["DETECTAT", "EMPARELLAT", "REVISAR", "ERROR_WHATSAPP"].includes(r.status)
   );
+
+  const sendTooltip = !sameClient
+    ? "Tots els impagats han de ser del mateix client"
+    : !canSend
+    ? "Els impagats han d'estar en estat DETECTAT, EMPARELLAT, REVISAR o ERROR_WHATSAPP"
+    : "";
 
   const handleBulkWhatsApp = async () => {
     if (!sameClient) return;
@@ -128,7 +135,7 @@ export default function ReturnedReceiptsList() {
                 <button
                   onClick={handleBulkWhatsApp}
                   disabled={!canSend || sending}
-                  title={!sameClient ? "Tots els impagats han de ser del mateix client" : !canSend ? "Els impagats han d'estar en estat DETECTAT, EMPARELLAT, REVISAR o NOTIFICAT" : ""}
+                  title={sendTooltip}
                   className="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm"
                 >
                   {sending ? "Enviant..." : `WhatsApp (${selected.size})`}
@@ -143,14 +150,18 @@ export default function ReturnedReceiptsList() {
         <select className="border rounded px-3 py-2 text-sm" value={filters.status || ""}
           onChange={(e) => setFilters(e.target.value ? { ...filters, status: e.target.value } : {})}>
           <option value="">Tots els estats</option>
-          <option value="DETECTAT">DETECTAT</option>
-          <option value="EMPARELLAT">EMPARELLAT</option>
-          <option value="REVISAR">REVISAR</option>
-          <option value="NOTIFICAT">NOTIFICAT</option>
-          <option value="JUSTIFICANT_REBUT">JUSTIFICANT REBUT</option>
-          <option value="PAGAMENT_CONFIRMAT">PAGAMENT CONFIRMAT</option>
-          <option value="TANCAT">TANCAT</option>
-          <option value="IGNORAT">IGNORAT</option>
+          <option value="DETECTAT">Detectat</option>
+          <option value="EMPARELLAT">Emparellat</option>
+          <option value="REVISAR">Revisar</option>
+          <option value="NOTIFICAT">Notificat</option>
+          <option value="ESPERANT_JUSTIFICANT">Esperant justificant</option>
+          <option value="PAGAMENT_DECLARAT">Pagament declarat</option>
+          <option value="JUSTIFICANT_REBUT">Justificant rebut</option>
+          <option value="PENDENT_REVISIO">Pendent revisió</option>
+          <option value="PAGAMENT_CONFIRMAT">Pagament confirmat</option>
+          <option value="TANCAT">Tancat</option>
+          <option value="ERROR_WHATSAPP">Error WhatsApp</option>
+          <option value="IGNORAT">Ignorat</option>
         </select>
         <input className="border rounded px-3 py-2 text-sm flex-1" placeholder="Cercar impagats..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
@@ -181,34 +192,40 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3 text-xs">{r.returnReason || "-"}</td>
                 <td className="p-3 text-sm">{r.servicePeriod || "-"}</td>
                 <td className="p-3 text-sm">{r.bankMovement?.rawData?.Valor || "-"}</td>
-                <td className="p-3 text-right">{r.returnedAmount.toFixed(2)} €</td>
+                <td className="p-3 text-right">{formatAmount(r.returnedAmount)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>
                 <td className="p-3">
                   {r.status === "NOTIFICAT" && (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
-                      <span className="text-green-700 text-xs">actiu</span>
+                      <span className="text-green-700 text-xs">enviat</span>
                     </span>
                   )}
-                  {r.status === "ESPERANT_DETALLS" && (
+                  {r.status === "ESPERANT_JUSTIFICANT" && (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" />
-                      <span className="text-yellow-700 text-xs">pendent</span>
+                      <span className="text-yellow-700 text-xs">esperant</span>
                     </span>
                   )}
-                  {r.status === "JUSTIFICANT_REBUT" && r.notes?.includes("[Agent:") && (
+                  {r.status === "PAGAMENT_DECLARAT" && (
                     <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
-                      <span className="text-green-700 text-xs">respost</span>
+                      <span className="w-1.5 h-1.5 bg-rose-500 rounded-full inline-block" />
+                      <span className="text-rose-700 text-xs">declarat</span>
                     </span>
                   )}
-                  {r.notes?.includes("altres_temes → redirigir") && (
+                  {r.status === "JUSTIFICANT_REBUT" && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-teal-500 rounded-full inline-block" />
+                      <span className="text-teal-700 text-xs">justificant</span>
+                    </span>
+                  )}
+                  {r.status === "ERROR_WHATSAPP" && (
                     <span className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
-                      <span className="text-red-700 text-xs">tancat</span>
+                      <span className="text-red-700 text-xs">error</span>
                     </span>
                   )}
-                  {!["NOTIFICAT", "ESPERANT_DETALLS", "JUSTIFICANT_REBUT"].includes(r.status) && !r.notes?.includes("[Agent:") && (
+                  {!["NOTIFICAT", "ESPERANT_JUSTIFICANT", "PAGAMENT_DECLARAT", "JUSTIFICANT_REBUT", "ERROR_WHATSAPP"].includes(r.status) && (
                     <span className="text-gray-400 text-xs">-</span>
                   )}
                 </td>

@@ -38,12 +38,18 @@ export const createReceiptSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+export const RETURN_RECEIPT_STATUSES = [
+  "DETECTAT", "EMPARELLAT", "REVISAR", "NOTIFICAT",
+  "ESPERANT_JUSTIFICANT", "PAGAMENT_DECLARAT", "JUSTIFICANT_REBUT",
+  "PENDENT_REVISIO", "PAGAMENT_CONFIRMAT", "TANCAT",
+  "ERROR_WHATSAPP", "IGNORAT",
+] as const;
+
+export type ReturnReceiptStatus = (typeof RETURN_RECEIPT_STATUSES)[number];
+
 // --- ReturnedReceipt update ---
 export const updateReceiptSchema = z.object({
-  status: z.enum([
-    "DETECTAT", "EMPARELLAT", "REVISAR", "NOTIFICAT",
-    "JUSTIFICANT_REBUT", "PAGAMENT_CONFIRMAT", "TANCAT", "IGNORAT", "ESPERANT_DETALLS",
-  ]).optional(),
+  status: z.enum(RETURN_RECEIPT_STATUSES).optional(),
   notes: z.string().nullable().optional(),
   clientId: z.number().int().positive().nullable().optional(),
   invoiceId: z.number().int().positive().nullable().optional(),

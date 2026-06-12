@@ -60,10 +60,19 @@ Enviament WhatsApp múltiple: seleccionar diversos impagats del mateix client i 
 
 Implementat: sí
 Verificat: sí
-Completat: sí
+Completat: no
 
 ## Notes
 
+- 2026-06-12 11:02: Safata admin: WorkTray component amb 8 filtres per estat integrat al Dashboard. Logs: pino a csvImporter (duplicats + resum) i returnDetector (detecció + resum). Tests: sepaXmlImporter amb fast-xml-parser (12 tests), importDedup (9 tests), proofService (13 tests). Bug arreglat: getNested no parsejava números (fast-xml-parser converteix a number). → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:45: Continuació: Afegits 25 tests (proofService 13 + importDedup 9). Arreglat bug validació MIME a proofService (era massa permissiva). Frontend ReceiptActions, ReturnedReceiptsList i ReturnedReceiptDetail actualitzats amb tots els estats nous i case notes/historial. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:43: ReceiptActions: dropdown amb 12 estats, labels actualitzats, isAgentActive amb ESPERANT_JUSTIFICANT/PAGAMENT_DECLARAT. ReturnedReceiptsList: filter amb 12 estats, agent column amb nous estats, bulk-send actualitzat. ReturnedReceiptDetail: case notes + status history integrats. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:40: statusHistory integrat a webhook, returnedReceipts (PUT, match, proof), outboxService, reconciliation. Frontend: api.ts amb auth token, StatusBadge amb 12 estats traduïts, Login page, App.tsx amb ruta /login, Dashboard amb 8 comptadors (nous estats), backend dashboard amb waitingProof, paymentClaimed, whatsappError. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:31: Implementades les 20 millores en 5 fases. Backend: 76 tests (7 suites), build OK. Frontend: build OK. Documentació creada. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:27: Fase 3: csvImporter genera importHash (SHA-256) i suporta ImportBatch. SEPA XML reescrit amb fast-xml-parser. matchingEngine crea MatchCandidate amb scoring (≥0.9 auto, 0.4-0.89 REVISAR, <0.4 auto-crea). bankMovements crea ImportBatch. Tests actualitzats. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:24: Fase 2: Creat messageClassifier.ts (7 intents tancats), proofService.ts (validació MIME, hash SHA-256), outboxService.ts (cua amb retry + delay 8-20s), webhook.ts reescrit (ordre correcte 11 passos), notificationService usa outbox. Afegida ruta /api/outbox. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:19: Schema Prisma actualitzat (11 models, Decimal, nous estats). Creat reply-templates.ts amb 8 plantilles fixes. Validation.ts actualitzat amb 12 estats. Tots els fitxers adaptats als nous tipus. 43 tests passen, TypeScript compila net. → Implementat:sí Verificat:no Completat:no
+- 2026-06-12 10:12: Commit f85fd6b: CLAUDE.md actualitzat (GitHub repo, execute-agent, webhook, .env). Pujat a GitHub. → Implementat:no Verificat:no Completat:no
 - 2026-06-12 08:14: Creat repo privat a github.com/aclivi-BlockchainTools/impagats. Pujats tots els commits (4) de la branca master amb backend, frontend, docs i config. → Implementat:sí Verificat:no Completat:no
 - 2026-06-11 16:55: Afegit endpoint POST /api/returned-receipts/:id/execute-agent que executa el flux complet real: desa INBOUND, classifica, envia WhatsApp, desa OUTBOUND amb metadata, actualitza estat. Afegit botó "Enviar resposta de l'agent per WhatsApp" al panell "Provar agent" del detall. → Implementat:sí Verificat:sí Completat:sí
 - 2026-06-11 16:49: Commit amb 38 fitxers: +1676/-930 línies. Missatge descriptiu amb totes les millores. → Implementat:no Verificat:no Completat:no

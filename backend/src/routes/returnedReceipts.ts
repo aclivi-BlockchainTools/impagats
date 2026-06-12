@@ -4,8 +4,10 @@ import { auditLog } from "../middleware/auditLog";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validate, createReceiptSchema, updateReceiptSchema, matchReceiptSchema, manualReplySchema } from "../lib/validation";
 import { sendWhatsApp, sendBulkWhatsApp } from "../services/notificationService";
-import { handleIncomingMessage } from "../services/conversationAgent";
-import { openwa } from "../connectors/OpenWAConnector";
+import { classify } from "../services/messageClassifier";
+import { getReplyTemplate } from "../services/replyTemplates";
+import { enqueueMessage, processOneMessage } from "../services/outboxService";
+import { recordStatusChange } from "../services/statusHistory";
 import multer from "multer";
 import path from "path";
 
@@ -138,10 +140,25 @@ router.put("/:id", asyncHandler(async (req: Request, res: Response) => {
   if (updateData.status === "PAGAMENT_CONFIRMAT") updateData.paymentConfirmedAt = new Date();
   if (updateData.status === "TANCAT") updateData.closedAt = new Date();
 
+  const oldReceipt = await prisma.returnedReceipt.findUnique({
+    where: { id: parseInt(req.params.id as string) },
+    select: { status: true },
+  });
+
   const receipt = await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },
     data: updateData,
   });
+
+  if (updateData.status && oldReceipt && updateData.status !== oldReceipt.status) {
+    await recordStatusChange({
+      receiptId: receipt.id,
+      fromStatus: oldReceipt.status,
+      toStatus: updateData.status,
+      reason: "Manual update via API",
+      actorType: "ADMIN",
+    });
+  }
 
   await auditLog("UPDATE_STATUS", "ReturnedReceipt", receipt.id, { from: req.body, to: updateData });
   res.json(receipt);
@@ -151,10 +168,26 @@ router.post("/:id/match", asyncHandler(async (req: Request, res: Response) => {
   const v = validate(matchReceiptSchema, req.body);
   if (!v.success) return res.status(400).json({ error: v.error });
 
+  const oldReceipt = await prisma.returnedReceipt.findUnique({
+    where: { id: parseInt(req.params.id as string) },
+    select: { status: true },
+  });
+
   const receipt = await prisma.returnedReceipt.update({
     where: { id: parseInt(req.params.id as string) },
     data: { clientId: v.data.clientId, invoiceId: v.data.invoiceId, status: "EMPARELLAT" },
   });
+
+  if (oldReceipt && oldReceipt.status !== "EMPARELLAT") {
+    await recordStatusChange({
+      receiptId: receipt.id,
+      fromStatus: oldReceipt.status,
+      toStatus: "EMPARELLAT",
+      reason: "Match manual",
+      actorType: "ADMIN",
+    });
+  }
+
   await auditLog("MANUAL_MATCH", "ReturnedReceipt", receipt.id, v.data);
   res.json(receipt);
 }));
@@ -162,43 +195,46 @@ router.post("/:id/match", asyncHandler(async (req: Request, res: Response) => {
 router.post("/:id/send-whatsapp", asyncHandler(async (req: Request, res: Response) => {
   const result = await sendWhatsApp(parseInt(req.params.id as string));
   if (!result.success) return res.status(400).json({ error: result.error });
+
+  // Processar immediatament l'outbox per enviar el missatge ja
+  if (result.outboxId) {
+    const sent = await processOneMessage(result.outboxId);
+    if (!sent.success) {
+      return res.status(400).json({ error: sent.error || "Error enviant WhatsApp" });
+    }
+  }
+
   res.json(result);
 }));
 
-// Simulate agent response — preview what the agent would reply without sending
+// Simulate classifier — preview what the classifier would decide without sending
 router.post("/:id/simulate-agent", asyncHandler(async (req: Request, res: Response) => {
-  const { text, hasMedia } = req.body;
+  const { text, hasMedia, mediaType, proofSaved } = req.body;
   if (!text || typeof text !== "string") {
     return res.status(400).json({ error: "text requerit" });
   }
 
-  const receipt = await prisma.returnedReceipt.findUnique({
-    where: { id: parseInt(req.params.id as string) },
-    include: { client: true },
+  const classification = classify({
+    body: text,
+    hasMedia: !!hasMedia,
+    mediaType: mediaType || undefined,
+    proofSaved: !!proofSaved,
   });
 
-  if (!receipt) return res.status(404).json({ error: "Impagat no trobat" });
-  if (!receipt.client) return res.status(400).json({ error: "Sense client assignat" });
-
-  const result = await handleIncomingMessage(
-    text,
-    !!hasMedia,
-    receipt.id,
-    receipt.client.name,
-  );
+  const replyText = getReplyTemplate(classification.intent);
 
   res.json({
-    intent: result.intent,
-    action: result.action,
-    replyText: result.replyText,
-    receiptNewStatus: result.receiptNewStatus,
-    metadata: result.metadata,
+    intent: classification.intent,
+    replyText,
+    shouldMarkJustificantRebut: classification.shouldMarkJustificantRebut,
+    shouldMarkPagamentDeclarat: classification.shouldMarkPagamentDeclarat,
+    shouldMarkRevisar: classification.shouldMarkRevisar,
   });
 }));
 
-// Execute agent — runs the full agent flow and sends the reply via WhatsApp
+// Execute agent — classifies and sends reply via outbox
 router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Response) => {
-  const { text } = req.body;
+  const { text, hasMedia, mediaType, proofSaved } = req.body;
   if (!text || typeof text !== "string") {
     return res.status(400).json({ error: "text requerit" });
   }
@@ -212,7 +248,7 @@ router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Respons
   if (!receipt.client) return res.status(400).json({ error: "Sense client assignat" });
   if (!receipt.client.whatsapp) return res.status(400).json({ error: "Client sense WhatsApp" });
 
-  // Save the simulated INBOUND message
+  // Save the INBOUND message
   await prisma.message.create({
     data: {
       receiptId: receipt.id,
@@ -221,46 +257,55 @@ router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Respons
     },
   });
 
-  // Run agent
-  const result = await handleIncomingMessage(
-    text.trim(),
-    false,
-    receipt.id,
-    receipt.client.name,
-  );
+  // Classify
+  const classification = classify({
+    body: text.trim(),
+    hasMedia: !!hasMedia,
+    mediaType: mediaType || undefined,
+    proofSaved: !!proofSaved,
+  });
 
-  // Send agent reply via WhatsApp (non-blocking — agent result is valid even if send fails)
-  let sendResult: { success: boolean; error?: string } = { success: false, error: "No intentat" };
+  const replyText = getReplyTemplate(classification.intent);
+
+  // Encuar resposta via outbox
+  let outboxId: number | null = null;
   try {
-    sendResult = await openwa.sendMessage(receipt.client.whatsapp, result.replyText);
+    outboxId = await enqueueMessage({
+      receiptId: receipt.id,
+      clientId: receipt.client.id,
+      phone: receipt.client.whatsapp,
+      message: replyText,
+    });
   } catch (err: any) {
-    sendResult = { success: false, error: err.message };
+    // continue — outbox failure is not fatal
   }
 
-  // Save agent OUTBOUND message (always, even if send failed)
+  // Save OUTBOUND message
   await prisma.message.create({
     data: {
       receiptId: receipt.id,
       direction: "OUTBOUND",
-      content: result.replyText,
-      status: sendResult.success ? "sent" : "failed",
-      agentIntent: result.intent,
-      agentAction: result.action,
-      agentMetadata: result.metadata,
-      needsReview: result.intent === "altres_temes",
+      content: replyText,
+      status: outboxId ? "queued" : "failed",
+      agentIntent: classification.intent,
+      agentAction: classification.intent,
+      needsReview: classification.shouldMarkRevisar,
     },
   });
 
   // Update receipt status
   const updateData: any = {};
-  if (result.receiptNewStatus) {
-    updateData.status = result.receiptNewStatus;
-    if (result.intent === "pagament_clar" || result.intent === "comprovant_enviat") {
-      updateData.proofReceivedAt = new Date();
-    }
+  if (classification.shouldMarkJustificantRebut) {
+    updateData.status = "JUSTIFICANT_REBUT";
+    updateData.proofReceivedAt = new Date();
+  } else if (classification.shouldMarkPagamentDeclarat) {
+    updateData.status = "PAGAMENT_DECLARAT";
+  } else if (classification.shouldMarkRevisar) {
+    updateData.status = "REVISAR";
   }
+
   const currentNotes = receipt.notes || "";
-  const conversationNote = `[Agent: ${result.intent} → ${result.action}]`;
+  const conversationNote = `[Classificat: ${classification.intent}]`;
   updateData.notes = currentNotes ? `${currentNotes} ${conversationNote}` : conversationNote;
 
   await prisma.returnedReceipt.update({
@@ -269,20 +314,16 @@ router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Respons
   });
 
   await auditLog("EXECUTE_AGENT", "ReturnedReceipt", receipt.id, {
-    intent: result.intent,
-    action: result.action,
-    sent: sendResult.success,
+    intent: classification.intent,
+    outboxId,
   });
 
   res.json({
     success: true,
-    whatsappSent: sendResult.success,
-    whatsappError: sendResult.error,
-    intent: result.intent,
-    action: result.action,
-    replyText: result.replyText,
-    receiptNewStatus: result.receiptNewStatus,
-    metadata: result.metadata,
+    outboxId,
+    intent: classification.intent,
+    replyText,
+    newStatus: updateData.status || receipt.status,
   });
 }));
 
@@ -293,6 +334,14 @@ router.post("/send-bulk-whatsapp", asyncHandler(async (req: Request, res: Respon
   }
   const result = await sendBulkWhatsApp(receiptIds);
   if (!result.success) return res.status(400).json({ error: result.error });
+
+  // Processar immediatament
+  if (result.outboxIds) {
+    for (const outboxId of result.outboxIds) {
+      await processOneMessage(outboxId);
+    }
+  }
+
   res.json(result);
 }));
 
@@ -302,17 +351,33 @@ router.post("/:id/proof", proofUpload.single("file"), asyncHandler(async (req: R
   const proof = await prisma.paymentProof.create({
     data: {
       receiptId: parseInt(req.params.id as string),
-      filePath: req.file.path,
+      storagePath: req.file.path,
       status: "RECEIVED",
     },
   });
 
+  const receiptId = parseInt(req.params.id as string);
+  const oldReceipt = await prisma.returnedReceipt.findUnique({
+    where: { id: receiptId },
+    select: { status: true },
+  });
+
   await prisma.returnedReceipt.update({
-    where: { id: parseInt(req.params.id as string) },
+    where: { id: receiptId },
     data: { status: "JUSTIFICANT_REBUT", proofReceivedAt: new Date() },
   });
 
-  await auditLog("UPLOAD_PROOF", "ReturnedReceipt", parseInt(req.params.id as string));
+  if (oldReceipt && oldReceipt.status !== "JUSTIFICANT_REBUT") {
+    await recordStatusChange({
+      receiptId,
+      fromStatus: oldReceipt.status,
+      toStatus: "JUSTIFICANT_REBUT",
+      reason: "Justificant pujat manualment",
+      actorType: "ADMIN",
+    });
+  }
+
+  await auditLog("UPLOAD_PROOF", "ReturnedReceipt", receiptId);
   res.status(201).json(proof);
 }));
 
@@ -328,28 +393,30 @@ router.post("/:id/reply", asyncHandler(async (req: Request, res: Response) => {
   if (!receipt) return res.status(404).json({ error: "Impagat no trobat" });
   if (!receipt.client?.whatsapp) return res.status(400).json({ error: "Client sense WhatsApp" });
 
-  const result = await openwa.sendMessage(receipt.client.whatsapp, v.data.text.trim());
+  // Encuar resposta manual via outbox
+  const outboxId = await enqueueMessage({
+    receiptId: receipt.id,
+    clientId: receipt.client.id,
+    phone: receipt.client.whatsapp,
+    message: v.data.text.trim(),
+  });
 
-  if (!result.success) {
-    return res.status(400).json({ error: result.error });
-  }
-
+  // Guardar al historial de missatges
   const message = await prisma.message.create({
     data: {
       receiptId: receipt.id,
       direction: "OUTBOUND",
       content: v.data.text.trim(),
-      externalId: result.externalId,
+      status: outboxId ? "queued" : "failed",
     },
   });
 
-  await prisma.returnedReceipt.update({
-    where: { id: receipt.id },
-    data: { status: "JUSTIFICANT_REBUT" },
+  await auditLog("MANUAL_REPLY", "ReturnedReceipt", receipt.id, {
+    text: v.data.text.trim(),
+    outboxId,
   });
 
-  await auditLog("MANUAL_REPLY", "ReturnedReceipt", receipt.id, { text: v.data.text.trim() });
-  res.json({ success: true, message });
+  res.json({ success: true, message, outboxId });
 }));
 
 router.delete("/:id", asyncHandler(async (req: Request, res: Response) => {
@@ -357,6 +424,10 @@ router.delete("/:id", asyncHandler(async (req: Request, res: Response) => {
   await prisma.message.deleteMany({ where: { receiptId: id } });
   await prisma.paymentProof.deleteMany({ where: { receiptId: id } });
   await prisma.reconciliationMatch.deleteMany({ where: { receiptId: id } });
+  await prisma.matchCandidate.deleteMany({ where: { receiptId: id } });
+  await prisma.whatsappOutbox.deleteMany({ where: { receiptId: id } });
+  await prisma.caseNote.deleteMany({ where: { receiptId: id } });
+  await prisma.returnedReceiptStatusHistory.deleteMany({ where: { receiptId: id } });
   await prisma.returnedReceipt.delete({ where: { id } });
   await auditLog("DELETE", "ReturnedReceipt", id);
   res.status(204).send();

@@ -48,6 +48,9 @@ jest.mock("../lib/prisma", () => ({
       create: jest.fn(),
       findFirst: jest.fn().mockResolvedValue(null),
     },
+    matchCandidate: {
+      create: jest.fn().mockResolvedValue({}),
+    },
     $transaction: jest.fn(),
     message: { create: jest.fn() },
   },
@@ -226,7 +229,7 @@ describe("matchingEngine", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("marks NEEDS_REVIEW when low confidence match (0.4-0.7)", async () => {
+  it("marks REVISAR when medium confidence match (0.4-0.89)", async () => {
     const receipt = {
       id: 1,
       status: "DETECTAT",
@@ -237,7 +240,7 @@ describe("matchingEngine", () => {
       invoiceId: null,
     };
 
-    // Only "Maria Garcia" exists, "MARIA" should get partial score
+    // Only "Maria Garcia" exists, "MARIA" should get partial score (0.7)
     mockClients = [{ id: 1, name: "Maria Garcia", whatsapp: "34600000001", active: true }];
 
     jest.spyOn(
@@ -248,8 +251,8 @@ describe("matchingEngine", () => {
     await matchReceipt(1);
 
     const call = mockUpdate.mock.calls[0][0];
-    // Score should be between 0.4 and 0.7 (partial word match "MARIA" vs "Maria Garcia")
-    expect(call.data.status).toBe("EMPARELLAT");
+    // Score 0.7 < 0.9 threshold → REVISAR (not auto-matched)
+    expect(call.data.status).toBe("REVISAR");
     expect(call.data.clientId).toBe(1);
   });
 });

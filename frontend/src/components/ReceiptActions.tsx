@@ -63,10 +63,7 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
     try {
       const result = await api.executeAgent(receipt.id, simulateText.trim());
       const label = intentLabels[result.intent] || result.intent;
-      const waMsg = result.whatsappSent
-        ? "WhatsApp enviat."
-        : `WhatsApp no enviat: ${result.whatsappError || "OpenWA no accessible"}. Però l'agent ha processat la resposta.`;
-      alert(`Agent: ${label} → ${result.action}\n${waMsg}`);
+      alert(`Classificat: ${label}\nNou estat: ${result.newStatus || receipt.status}\nResposta encuada${result.outboxId ? " (outbox #" + result.outboxId + ")" : ""}`);
       setSimulateText("");
       setSimulateResult(null);
       onReload();
@@ -75,13 +72,18 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
   };
 
   const intentLabels: Record<string, string> = {
-    pagament_clar: "Pagament clar",
-    pagament_ambigu: "Pagament ambigu",
-    comprovant_enviat: "Comprovant enviat",
-    altres_temes: "Altres temes",
+    proof_media: "Justificant rebut",
+    payment_claim_without_proof: "Declara pagament",
+    question: "Pregunta",
+    complaint: "Queixa",
+    wrong_person: "Persona equivocada",
+    audio: "Àudio",
+    unknown: "Desconegut",
   };
 
-  const isAgentActive = receipt.status === "NOTIFICAT" || receipt.status === "ESPERANT_DETALLS";
+  const isAgentActive = [
+    "NOTIFICAT", "ESPERANT_JUSTIFICANT", "PAGAMENT_DECLARAT"
+  ].includes(receipt.status);
 
   return (
     <div className="space-y-4">
@@ -104,14 +106,18 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
             <label className="text-sm font-medium block mb-1">Canviar estat</label>
             <select className="w-full border rounded px-3 py-2 text-sm" value={receipt.status}
               onChange={(e) => handleStatusChange(e.target.value)}>
-              <option value="DETECTAT">DETECTAT</option>
-              <option value="EMPARELLAT">EMPARELLAT</option>
-              <option value="REVISAR">REVISAR</option>
-              <option value="NOTIFICAT">NOTIFICAT</option>
-              <option value="JUSTIFICANT_REBUT">JUSTIFICANT REBUT</option>
-              <option value="PAGAMENT_CONFIRMAT">PAGAMENT CONFIRMAT</option>
-              <option value="TANCAT">TANCAT</option>
-              <option value="IGNORAT">IGNORAT</option>
+              <option value="DETECTAT">Detectat</option>
+              <option value="EMPARELLAT">Emparellat</option>
+              <option value="REVISAR">Revisar</option>
+              <option value="NOTIFICAT">Notificat</option>
+              <option value="ESPERANT_JUSTIFICANT">Esperant justificant</option>
+              <option value="PAGAMENT_DECLARAT">Pagament declarat</option>
+              <option value="JUSTIFICANT_REBUT">Justificant rebut</option>
+              <option value="PENDENT_REVISIO">Pendent revisió</option>
+              <option value="PAGAMENT_CONFIRMAT">Pagament confirmat</option>
+              <option value="TANCAT">Tancat</option>
+              <option value="ERROR_WHATSAPP">Error WhatsApp</option>
+              <option value="IGNORAT">Ignorat</option>
             </select>
           </div>
         </div>
@@ -162,18 +168,14 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
                 <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-medium">
                   {intentLabels[simulateResult.intent] || simulateResult.intent}
                 </span>
-                <span className="text-gray-400">→</span>
-                <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-mono text-xs">
-                  {simulateResult.action}
-                </span>
               </div>
-              {simulateResult.receiptNewStatus && (
-                <div className="text-xs text-gray-500">
-                  Canviaria estat a: <span className="font-medium text-green-700">{simulateResult.receiptNewStatus}</span>
-                </div>
-              )}
+              <div className="text-xs text-gray-500 space-y-1">
+                {simulateResult.shouldMarkJustificantRebut && <div>Marcaria: <span className="font-medium text-green-700">JUSTIFICANT_REBUT</span></div>}
+                {simulateResult.shouldMarkPagamentDeclarat && <div>Marcaria: <span className="font-medium text-rose-700">PAGAMENT_DECLARAT</span></div>}
+                {simulateResult.shouldMarkRevisar && <div>Marcaria: <span className="font-medium text-orange-700">REVISAR</span></div>}
+              </div>
               <div>
-                <div className="text-xs text-gray-500 mb-1">Resposta de l'agent:</div>
+                <div className="text-xs text-gray-500 mb-1">Resposta:</div>
                 <div className="bg-purple-50 border border-purple-200 rounded p-2 text-sm whitespace-pre-wrap text-purple-900">
                   {simulateResult.replyText}
                 </div>
@@ -183,7 +185,7 @@ export default function ReceiptActions({ receipt, onReload }: Props) {
                 disabled={executing || !receipt.client?.whatsapp}
                 className="w-full bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 disabled:opacity-50"
               >
-                {executing ? "Enviant..." : "Enviar resposta de l'agent per WhatsApp"}
+                {executing ? "Enviant..." : "Enviar resposta per WhatsApp"}
               </button>
             </div>
           )}

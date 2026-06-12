@@ -1,6 +1,6 @@
 import { useState } from "react";
 import StatusBadge from "./StatusBadge";
-import { api } from "../lib/api";
+import { api, formatAmount } from "../lib/api";
 
 interface Props {
   receipt: any;
@@ -61,7 +61,7 @@ export default function ReceiptInfo({ receipt, clients, invoices, onReload }: Pr
           <label className="block text-xs text-gray-500">Factura</label>
           <select className="w-full border rounded px-2 py-1 text-sm" value={editData.invoiceId || ""} onChange={(e) => set("invoiceId", e.target.value ? parseInt(e.target.value) : null)}>
             <option value="">Cap</option>
-            {(invoices || []).map((inv: any) => <option key={inv.id} value={inv.id}>#{inv.invoiceNumber} ({inv.amount.toFixed(2)}€)</option>)}
+            {(invoices || []).map((inv: any) => <option key={inv.id} value={inv.id}>#{inv.invoiceNumber} ({formatAmount(inv.amount)}€)</option>)}
           </select>
         </div>
         <div>
@@ -91,11 +91,11 @@ export default function ReceiptInfo({ receipt, clients, invoices, onReload }: Pr
         <button onClick={startEdit} className="text-blue-600 hover:underline text-sm">Editar</button>
       </div>
       <div><span className="text-sm text-gray-500">Data devolució:</span> {new Date(receipt.returnDate).toLocaleDateString("ca-ES")}</div>
-      <div><span className="text-sm text-gray-500">Import retornat:</span> <strong>{receipt.returnedAmount.toFixed(2)} €</strong></div>
+      <div><span className="text-sm text-gray-500">Import retornat:</span> <strong>{formatAmount(receipt.returnedAmount)} €</strong></div>
       <div><span className="text-sm text-gray-500">Núm. Factura:</span> {receipt.receiptReference || "-"}</div>
       <div><span className="text-sm text-gray-500">Motiu:</span> {receipt.returnReason || "-"}</div>
       <div><span className="text-sm text-gray-500">Client:</span> {receipt.client ? <>{receipt.client.name} ({receipt.client.whatsapp || "sense WhatsApp"})</> : <span className="text-orange-600">No assignat</span>}</div>
-      <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({receipt.invoice.amount.toFixed(2)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
+      <div><span className="text-sm text-gray-500">Factura:</span> {receipt.invoice ? <>#{receipt.invoice.invoiceNumber} ({formatAmount(receipt.invoice.amount)} €)</> : <span className="text-orange-600">No assignada</span>}</div>
       {receipt.servicePeriod && <div><span className="text-sm text-gray-500">Període:</span> <span className="font-medium">{receipt.servicePeriod}</span></div>}
       {receipt.notes && <div><span className="text-sm text-gray-500">Notes:</span> <span className="text-blue-700 font-medium">{receipt.notes}</span></div>}
       {receipt.bankMovement?.rawData?.Valor && (

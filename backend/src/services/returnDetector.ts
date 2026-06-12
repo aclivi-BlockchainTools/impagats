@@ -1,5 +1,6 @@
 import { TxClient } from "../lib/prisma";
 import prisma from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 const DEFAULT_KEYWORDS = [
   "devolucio", "devolución", "recibo devuelto", "impagado",
@@ -53,7 +54,7 @@ export async function detectReturns(tx: TxClient = prisma): Promise<number> {
 
   for (const mv of movements) {
     const concept = (mv.concept || "").toLowerCase();
-    const isNegative = mv.amount < 0;
+    const isNegative = Number(mv.amount) < 0;
 
     const keywordMatch = keywords.some((kw) => concept.includes(kw));
 
@@ -74,7 +75,7 @@ export async function detectReturns(tx: TxClient = prisma): Promise<number> {
         await tx.returnedReceipt.create({
           data: {
             bankMovementId: mv.id,
-            returnedAmount: Math.abs(mv.amount),
+            returnedAmount: Math.abs(Number(mv.amount)),
             returnDate: mv.date,
             returnReason: concept.replace(/\s+/g, " ").trim(),
             receiptReference: ref,
@@ -84,9 +85,11 @@ export async function detectReturns(tx: TxClient = prisma): Promise<number> {
           },
         });
         detected++;
+        logger.info({ movementId: mv.id, amount: Math.abs(Number(mv.amount)), concept: mv.concept }, "Devolució detectada");
       }
     }
   }
 
+  logger.info({ detected, total: movements.length }, "Detecció de devolucions completada");
   return detected;
 }

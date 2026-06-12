@@ -110,9 +110,10 @@ impagats/
 | **AuditLog** | action, entityType, entityId, details (JSON) |
 | **AppSettings** | key (PK), value |
 
-### Estats de ReturnedReceipt
-`DETECTAT → EMPARELLAT → NOTIFICAT → JUSTIFICANT_REBUT → PAGAMENT_CONFIRMAT → TANCAT`
-(+ `REVISAR`, `IGNORAT`, `ESPERANT_DETALLS`)
+## Estats de ReturnedReceipt (12)
+
+`DETECTAT → EMPARELLAT → NOTIFICAT → ESPERANT_JUSTIFICANT | PAGAMENT_DECLARAT → JUSTIFICANT_REBUT → PENDENT_REVISIO → PAGAMENT_CONFIRMAT → TANCAT`
+(+ `REVISAR`, `ERROR_WHATSAPP`, `IGNORAT`)
 
 - **DETECTAT**: devolució trobada al CSV, pendent de matching
 - **EMPARELLAT**: client amb WhatsApp confirmat, llest per enviar missatge
@@ -189,7 +190,7 @@ impagats/
 - Servidor: `192.168.0.194:2886`
 - Sessió configurada: `tlliure` (id: `390fd350-...`)
 - Altres sessions disponibles: `keleris`, `importmatica`
-- Webhook registrat: `http://192.168.0.194:3001/api/openwa/webhook`
+- Webhook registrat: `http://192.168.0.177:3001/api/openwa/webhook?secret=impagats-webhook-secret`
 - Events: `message.received`
 
 ## Comandes per arrencar
@@ -267,3 +268,73 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Client: només WhatsApp (sense telèfon) al formulari
 - SEPA XML: data invàlida fa fallback a data de factura (Ustrd) → mai es descarta cap impagat
 - SEPA XML: codis de rebuig traduïts al català
+
+## OpenWA — format webhook real
+
+- Webhook rep `{event:"message.received", data:{from, body, media, chatId, to, type, fromMe}}`
+- `from` pot ser `@lid` (ID intern) o `@c.us` (número real). Netejar amb `from.replace(/@[\w.]+$/, "")`
+- Si `@lid`, resoldre contacte via `GET /api/sessions/{id}/contacts/{from}` → `contact.id` té el `@c.us` real
+- `@g.us` = grup, `@lid` = llista interna d'OpenWA
+
+## Prisma Decimal → JSON string
+
+- Els camps `Decimal @db.Decimal(10,2)` es serialitzen com a **string** en JSON (`"18.15"`)
+- El frontend NO pot fer `.toFixed(2)` directament. Usar helper `formatAmount(val)` que accepta `string|number`
+- `formatAmount` és a `frontend/src/lib/api.ts`
+
+## Plantilles WhatsApp
+
+- `replyTemplates.ts` exporta `render(template, vars: TemplateVars): string`
+- Cridar `render()` SEMPRE, tant per plantilles custom d'AppSettings com per les default
+- Si no es crida `render()`, les variables `{{client_name}}` s'envien en brut al client
+
+## Outbox — processament immediat
+
+- `enqueueMessage()` encua en PENDING. NO envia res a OpenWA.
+- Cal cridar `processOneMessage(outboxId)` després per enviar immediatament
+- Si no, els missatges queden PENDING fins que s'executi `POST /api/outbox/process`
+- L'outbox cancel·la automàticament missatges PENDING antics del mateix rebut abans d'encuar-ne un de nou
+
+## DELETE cascada
+
+Abans d'esborrar un ReturnedReceipt, netejar TOTES les FK:
+message → paymentProof → reconciliationMatch → matchCandidate → whatsappOutbox → caseNote → statusHistory
+
+## fast-xml-parser
+
+- `parseAttributeValue: true` converteix strings numèriques a `number` (ex: `"150.50"` → `150.5`)
+- La funció `getNested()` ha de gestionar `typeof current === "number"` o retorna null
+- `removeNSPrefix: false` permet buscar claus amb namespace. Sense prefix = clau exacta
+
+## Classificador de missatges (7 intents tancats)
+
+- `messageClassifier.ts`: proof_media, payment_claim_without_proof, question, complaint, wrong_person, audio, unknown
+- `replyTemplates.ts`: 8 plantilles fixes amb `getReplyTemplate(intent)`
+- Totes les respostes són plantilles fixes, sense redacció lliure
+
+## Auth JWT
+
+- `auth.ts` middleware: protegeix totes les rutes excepte `/api/health`, `/api/openwa/webhook`, `/api/auth`
+- `.env`: JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD_HASH (bcrypt)
+- Sense JWT_SECRET → auth desactivat (mode dev)
+- Frontend: token a `localStorage.auth_token`, header `Authorization: Bearer <token>`
+
+## Nous endpoints
+
+| Ruta | Descripció |
+|------|-----------|
+| `POST /api/auth/login` | Login {email, password} → {token} |
+| `GET /api/auth/me` | Verificar token |
+| `GET /api/outbox` | Llistar cua |
+| `GET /api/outbox/stats` | Estadístiques {pending, sending, sent, failed, cancelled} |
+| `POST /api/outbox/process` | Processar cua manualment |
+| `POST /api/outbox/:id/retry` | Reenviar missatge fallit |
+| `POST /api/outbox/:id/cancel` | Cancel·lar missatge |
+| `GET /api/case-notes/:id/notes` | Notes internes d'un rebut |
+| `POST /api/case-notes/:id/notes` | Crear nota {body} |
+| `GET /api/case-notes/:id/history` | Historial d'estats d'un rebut |
+
+## Tests i build
+
+- Backend: `cd backend && npm test` (112 tests, 10 suites), `npm run build` (tsc)
+- Frontend: `cd frontend && npm run build` (tsc + vite)

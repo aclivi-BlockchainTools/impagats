@@ -99,10 +99,21 @@ export default function AgentObserverSection() {
   };
 
   useEffect(() => {
-    if (tab === "suggestions") loadSuggestions();
-    else if (tab === "conversations") { setFilterType("conversation_review"); loadSuggestions(); }
-    else if (tab === "audits") { setFilterType("agent_audit"); loadSuggestions(); }
-    else if (tab === "keywords") loadKeywords();
+    if (tab === "suggestions") {
+      setFilterType("message_classification");
+      setFilterStatus("PENDING");
+      loadSuggestions();
+    } else if (tab === "conversations") {
+      setFilterType("conversation_review");
+      setFilterStatus("PENDING");
+      loadSuggestions();
+    } else if (tab === "audits") {
+      setFilterType("agent_audit");
+      setFilterStatus("");
+      loadSuggestions();
+    } else if (tab === "keywords") {
+      loadKeywords();
+    }
   }, [tab, page]);
 
   useEffect(() => {

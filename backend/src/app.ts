@@ -15,6 +15,7 @@ import outboxRouter from "./routes/outbox";
 import authRouter from "./routes/auth";
 import caseNotesRouter from "./routes/caseNotes";
 import proofsRouter from "./routes/proofs";
+import reconciliationRouter from "./routes/reconciliation";
 
 const app = express();
 app.use(cors({
@@ -50,6 +51,7 @@ app.use("/api/dashboard", authMiddleware, dashboardRouter);
 app.use("/api/outbox", authMiddleware, outboxRouter);
 app.use("/api/case-notes", authMiddleware, caseNotesRouter);
 app.use("/api/proofs", authMiddleware, proofsRouter);
+app.use("/api/reconciliation", authMiddleware, reconciliationRouter);
 app.use(errorHandler);
 
 export default app;

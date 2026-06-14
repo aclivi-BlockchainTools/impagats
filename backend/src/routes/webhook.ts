@@ -60,6 +60,83 @@ function validateSecret(req: Request): boolean {
   return req.query.secret === config.webhookSecret;
 }
 
+// Extreu una data promesa del text ("demà", "divendres", "dia 15", "setmana que ve", "final de mes")
+function extractPromisedDate(text: string): Date | null {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // "dema" / "manana" → demà
+  if (/\b(?:dema|manana)\b/.test(normalized)) {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  // Dies de la setmana
+  const weekdays: Record<string, number> = {
+    "dilluns": 1, "lunes": 1,
+    "dimarts": 2, "martes": 2,
+    "dimecres": 3, "miercoles": 3,
+    "dijous": 4, "jueves": 4,
+    "divendres": 5, "viernes": 5,
+    "dissabte": 6, "sabado": 6,
+    "diumenge": 0, "domingo": 0,
+  };
+
+  for (const [name, targetDay] of Object.entries(weekdays)) {
+    if (normalized.includes(name)) {
+      const currentDay = today.getDay();
+      let daysUntil = targetDay - currentDay;
+      if (daysUntil <= 0) daysUntil += 7; // la setmana que ve
+      const target = new Date(today);
+      target.setDate(target.getDate() + daysUntil);
+      return target;
+    }
+  }
+
+  // "dia X" o "el X" (dia del mes)
+  const dayMatch = normalized.match(/(?:dia|el)\s+(\d{1,2})\b/);
+  if (dayMatch) {
+    const day = parseInt(dayMatch[1]);
+    if (day >= 1 && day <= 31) {
+      const target = new Date(today.getFullYear(), today.getMonth(), day);
+      if (target <= today) target.setMonth(target.getMonth() + 1);
+      return target;
+    }
+  }
+
+  // "setmana que ve" / "la semana que viene" / "propera setmana"
+  if (/\b(?:setmana|semana)\s+(?:que\s+ve|viene|propera|proxima)\b/.test(normalized)) {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return nextWeek;
+  }
+
+  // "final de mes" / "a finals de mes" / "fin de mes"
+  if (/\b(?:final|fin|finals)\s+(?:de|d'|del)\s+mes\b/.test(normalized)) {
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    if (endOfMonth <= today) {
+      // Si ja som a final de mes, el mes que ve
+      return new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    }
+    return endOfMonth;
+  }
+
+  // "mes que ve" / "el mes que ve" / "proper mes"
+  if (/\b(?:mes|mes)\s+(?:que\s+ve|proper|proximo|seguent)\b/.test(normalized)) {
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    return nextMonth;
+  }
+
+  return null;
+}
+
 // Comprova si ja s'ha enviat la mateixa plantilla recentment
 async function wasRecentlyReplied(
   receiptId: number,
@@ -303,14 +380,43 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  // === 8. Obtenir context del rebut (per classificació contextual) ===
+  // === 8. Obtenir context complet del rebut (FASE 2) ===
   const existingProofCount = await prisma.paymentProof.count({
     where: { receiptId, status: "RECEIVED" },
   });
   const currentStatus = openReceipt.status;
   const hasExistingProof = existingProofCount > 0;
 
-  // === 9. Classificar missatge amb informació real + context ===
+  // Informació del client i factura
+  const clientName = client.name;
+  const invoiceNumber = openReceipt.invoiceId
+    ? (await prisma.invoice.findUnique({ where: { id: openReceipt.invoiceId! }, select: { invoiceNumber: true } }))?.invoiceNumber || undefined
+    : undefined;
+
+  // Comptar altres rebuts pendents del client
+  const pendingReceiptCount = await prisma.returnedReceipt.count({
+    where: {
+      clientId: client.id,
+      id: { not: receiptId },
+      status: { notIn: ["TANCAT", "PAGAMENT_CONFIRMAT", "IGNORAT"] },
+    },
+  });
+
+  // Comprovar si hi ha abonaments compatibles (ReconciliationMatch)
+  const reconciliationMatchCount = await prisma.reconciliationMatch.count({
+    where: { receiptId },
+  });
+  const hasReconciliationMatch = reconciliationMatchCount > 0;
+
+  // Últims missatges del client (per context conversacional)
+  const recentMessages = await prisma.message.findMany({
+    where: { receiptId, direction: "INBOUND" },
+    orderBy: { sentAt: "desc" },
+    take: 5,
+  });
+  const lastMessages = recentMessages.map((m) => m.content || "").reverse();
+
+  // === 9. Classificar missatge amb informació real + context complet ===
   const classification = classify({
     body: text || "",
     hasMedia: !!media,
@@ -318,6 +424,13 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
     proofSaved,
     currentStatus,
     hasExistingProof,
+    clientName,
+    invoiceNumber,
+    receiptAmount: openReceipt.returnedAmount.toString(),
+    servicePeriod: openReceipt.servicePeriod || undefined,
+    pendingReceiptCount,
+    hasReconciliationMatch,
+    lastMessages,
   });
 
   logger.info({
@@ -329,12 +442,14 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
   }, "Classificació");
 
   // === 9. Anti-repetició ===
-  // Nota: proof_media i errors de guardat NO estan subjectes a anti-repetició
+  // Nota: proof_media, unsubscribe i errors de guardat NO estan subjectes a anti-repetició
   // (són respostes operacionals, no canned responses)
 
   const isProofRelated =
     classification.intent === "proof_media" ||
     classification.intent === "additional_proof_received" ||
+    classification.intent === "unsubscribe" ||
+    classification.intent === "case_info_request" ||
     (!!media && !proofSaved && !!proofSaveError && !(mediaType?.startsWith("audio/") || mediaType === "audio/ogg; codecs=opus"));
 
   let shouldActuallyReply = classification.shouldReply;
@@ -361,7 +476,39 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  // === 10. Actualitzar estat del rebut ===
+  // === 10. Crear PaymentPromise si l'agent ho indica ===
+  if (classification.intent === "payment_promise") {
+    try {
+      const promisedDate = extractPromisedDate(text || "");
+      await prisma.paymentPromise.create({
+        data: {
+          receiptId,
+          clientId: client.id,
+          body: text || null,
+          promisedDate,
+          status: "ACTIVE",
+        },
+      });
+      logger.info({ receiptId, promisedDate }, "PaymentPromise creada");
+    } catch (err: any) {
+      logger.error({ err, receiptId }, "Error creant PaymentPromise");
+    }
+  }
+
+  // === 11. Bloquejar WhatsApp si l'agent ho indica ===
+  if (classification.shouldBlockWhatsapp && client.whatsapp) {
+    try {
+      await prisma.client.update({
+        where: { id: client.id },
+        data: { whatsappBlocked: true },
+      });
+      logger.info({ clientId: client.id, intent: classification.intent }, "WhatsApp bloquejat per al client");
+    } catch (err: any) {
+      logger.error({ err, clientId: client.id }, "Error bloquejant WhatsApp del client");
+    }
+  }
+
+  // === 11. Actualitzar estat del rebut ===
   try {
     const updateData: any = {};
     const newNotes: string[] = [];
@@ -389,6 +536,10 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
       updateData.status = "REVISAR";
       if (forceRevisar) {
         newNotes.push("[Derivat a revisió: 3+ missatges consecutius fora de flux]");
+      } else if (classification.intent === "unsubscribe") {
+        newNotes.push("[Client demana no rebre més WhatsApps — canal bloquejat]");
+      } else if (classification.intent === "wrong_person") {
+        newNotes.push("[Possible telèfon incorrecte — WhatsApp bloquejat]");
       } else {
         newNotes.push(`[Derivat a revisió: ${classification.intent}]`);
       }
@@ -435,6 +586,26 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
         const custom = await prisma.appSettings.findUnique({ where: { key: "template_proof_media_error" } });
         replyText = custom?.value?.trim() || TEMPLATE_PROOF_SAVE_ERROR;
         logger.info({ receiptId, proofSaveError }, "Usant plantilla d'error de guardat de fitxer");
+      } else if (classification.intent === "case_info_request") {
+        // Construir resposta contextual amb dades del cas
+        const templateKey = `template_case_info_request`;
+        const custom = await prisma.appSettings.findUnique({ where: { key: templateKey } });
+        const template = custom?.value?.trim() || getReplyTemplate("case_info_request");
+
+        // Construir case_details amb la info disponible
+        const details: string[] = [];
+        if (openReceipt.servicePeriod) details.push(`📅 Període: ${openReceipt.servicePeriod}`);
+        if (invoiceNumber) details.push(`📋 Factura: ${invoiceNumber}`);
+        details.push(`💰 Import: ${openReceipt.returnedAmount.toString()} €`);
+
+        const caseDetails = details.join("\n");
+        replyText = render(template, { case_details: caseDetails, company_name: "" });
+
+        // Renderitzar {{company_name}} al template si cal
+        if (replyText.includes("{{company_name}}")) {
+          const nameSetting = await prisma.appSettings.findUnique({ where: { key: "company_name" } });
+          replyText = render(replyText, { company_name: nameSetting?.value || "l'empresa" });
+        }
       } else {
         // Buscar plantilla custom per aquest intent
         const templateKey = `template_${classification.intent}`;

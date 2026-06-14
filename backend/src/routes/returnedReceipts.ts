@@ -124,6 +124,8 @@ router.get("/:id", asyncHandler(async (req: Request, res: Response) => {
       bankMovement: true,
       messages: { orderBy: { sentAt: "desc" } },
       proofs: true,
+      reconciliation: { include: { bankMovement: true } },
+      paymentPromises: true,
     },
   });
   if (!receipt) return res.status(404).json({ error: "Impagat no trobat" });
@@ -451,6 +453,7 @@ router.delete("/:id", asyncHandler(async (req: Request, res: Response) => {
   await prisma.matchCandidate.deleteMany({ where: { receiptId: id } });
   await prisma.whatsappOutbox.deleteMany({ where: { receiptId: id } });
   await prisma.caseNote.deleteMany({ where: { receiptId: id } });
+  await prisma.paymentPromise.deleteMany({ where: { receiptId: id } });
   await prisma.returnedReceiptStatusHistory.deleteMany({ where: { receiptId: id } });
   await prisma.returnedReceipt.delete({ where: { id } });
   await auditLog("DELETE", "ReturnedReceipt", id);

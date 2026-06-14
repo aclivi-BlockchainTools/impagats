@@ -15,6 +15,7 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
   if (!receipt) return { success: false, error: "Impagat no trobat" };
   if (!receipt.client) return { success: false, error: "Sense client assignat" };
   if (!receipt.client.whatsapp) return { success: false, error: "Client sense WhatsApp" };
+  if (receipt.client.whatsappBlocked) return { success: false, error: "WhatsApp bloquejat per a aquest client" };
 
   if (["TANCAT", "PAGAMENT_CONFIRMAT"].includes(receipt.status)) {
     return { success: false, error: "El rebut ja està tancat o confirmat" };

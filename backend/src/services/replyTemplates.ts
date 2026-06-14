@@ -12,6 +12,7 @@ export interface TemplateVars {
   company_iban?: string;
   total_amount?: string;
   receipts_list?: string;
+  case_details?: string;
 }
 
 export function render(template: string, vars: TemplateVars): string {
@@ -112,6 +113,22 @@ Si ja has fet l'abonament, envia si us plau el justificant bancari en foto, PDF 
 
 Per qualsevol dubte, contacta amb nosaltres per les vies habituals.`;
 
+// --- unsubscribe: Client demana no rebre més WhatsApps ---
+export const TEMPLATE_UNSUBSCRIBE = `D'acord. No t'enviarem més missatges per aquest canal.
+
+Si en el futur vols reactivar les notificacions, contacta amb nosaltres per les vies habituals.
+
+Gràcies.`;
+
+// --- case_info_request: Pregunta sobre deute amb context suficient ---
+export const TEMPLATE_CASE_INFO = `T'informem sobre el teu cas:
+
+{{case_details}}
+
+Si ja has fet l'abonament, envia'ns el justificant en foto, PDF o document per aquest WhatsApp.
+
+Per qualsevol altre dubte, contacta amb nosaltres per les vies habituals.`;
+
 // --- wrong_person: Número equivocat ---
 export const TEMPLATE_WRONG_PERSON = `Gràcies per avisar.
 
@@ -136,8 +153,10 @@ export const REPLY_TEMPLATES: Record<string, string> = {
   payment_claim_without_proof: TEMPLATE_PAYMENT_CLAIM_NO_PROOF,
   payment_promise: TEMPLATE_PAYMENT_PROMISE,
   question_about_debt: TEMPLATE_QUESTION_ABOUT_DEBT,
+  case_info_request: TEMPLATE_CASE_INFO,
   complaint_or_problem: TEMPLATE_COMPLAINT_OR_PROBLEM,
   wrong_person: TEMPLATE_WRONG_PERSON,
+  unsubscribe: TEMPLATE_UNSUBSCRIBE,
   audio: TEMPLATE_AUDIO,
   unknown: TEMPLATE_UNKNOWN,
 };

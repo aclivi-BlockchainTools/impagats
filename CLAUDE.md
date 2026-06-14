@@ -429,3 +429,86 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 ### WorkTray
 - Imports amb `formatAmount()` (suporta Decimal strings de Prisma)
 
+## Aprenentatges de la sessió 2026-06-14 (part 2)
+
+### Agent amb més context (FASE 2)
+- `ClassificationInput` ampliat amb: `clientName`, `invoiceNumber`, `receiptAmount`, `servicePeriod`, `pendingReceiptCount`, `hasReconciliationMatch`, `lastMessages`
+- `ClassificationResult` té nou flag `shouldBlockWhatsapp`
+- Webhook carrega context complet abans de classificar: client, factura, altres rebuts pendents, abonaments, últims missatges
+- Si `payment_claim` i `hasReconciliationMatch` → `pending_review_status` (no insistir en justificant)
+- Si `question_about_debt` amb dades → `case_info_request` (respon amb info del cas)
+
+### Nous intents (FASE 3)
+- **13 intents tancats**: + `unsubscribe` (baixa del canal), + `case_info_request` (info contextual del cas)
+- `unsubscribe`: detecta "no m'enviïs més", "esborreu el meu número", "doneu-me de baixa", "STOP", "BAIXA"
+- `case_info_request`: pregunta sobre deute amb prou context per respondre amb detalls del cas
+- `wrong_person`: ara bloqueja WhatsApp automàticament (`shouldBlockWhatsapp: true`)
+- `unsubscribe` i `wrong_person` tenen prioritat sobre greeting/payment_claim
+- `payment_promise` té prioritat sobre `payment_claim` (evita classificar promeses futures com claims)
+- `unsubscribe` i `case_info_request` no estan subjectes a anti-repetició
+
+### Promeses de pagament (FASE 4)
+- Nou model `PaymentPromise` (receiptId, clientId, body, promisedDate, status)
+- `extractPromisedDate()`: extreu data de "demà", "divendres", "dia X", "setmana que ve", "final de mes", "mes que ve"
+- Webhook crea PaymentPromise automàticament quan `payment_promise`
+- DELETE cascada inclou PaymentPromise
+
+### Bloqueig WhatsApp i seguretat (FASE 9)
+- Nou camp `Client.whatsappBlocked` (Boolean, default false)
+- Webhook bloqueja WhatsApp automàticament per `unsubscribe` i `wrong_person`
+- `enqueueMessage` rebutja missatges si client té `whatsappBlocked`
+- `sendWhatsApp` rebutja si client bloquejat
+- Notes al rebut: "[Possible telèfon incorrecte — WhatsApp bloquejat]", "[Client demana no rebre més WhatsApps — canal bloquejat]"
+
+### Safata de treball (FASE 5)
+- Nova pàgina `WorkTray.tsx` a `/work-tray` amb menú "Safata"
+- 10 grups de filtres: justificants pendents, pagaments declarats, justificants rebuts, promeses, notificats sense resposta, errors WhatsApp, requereixen revisió, confirmats, tancats, ignorats
+- Accions recomanades automàtiques segons estat
+- Columna "Dies notificat" amb colors (vermell ≥7d, ambre ≥3d)
+- Columna "Última resposta" del client
+
+### Conciliació (FASE 6)
+- `reconciliation.ts` reescrit amb scoring multi-factor (0-100):
+  - Import exacte: +50, ±2%: +30, ±10%: +10
+  - Nom client al concepte: +30 (2+ parts) o +15 (1 part)
+  - Factura al concepte: +40
+  - Referència al concepte: +20
+  - Període al concepte: +10
+  - Data posterior al retorn: +5
+  - Suma de 2-3 rebuts: +65-70
+- Nous endpoints: `POST /api/reconciliation/run`, `GET /api/reconciliation/matches`
+- Score ≥80 → PAGAMENT_CONFIRMAT, 40-79 → REVISAR, <40 → no match
+- `reconcileNewMovements` busca en estats: NOTIFICAT, JUSTIFICANT_REBUT, PAGAMENT_DECLARAT, ESPERANT_JUSTIFICANT, PENDENT_REVISIO
+
+### Vista client (FASE 7)
+- `ClientForm.tsx` millorat: targetes resum (deute total, rebuts pendents, factures, WhatsApp)
+- Matriu mensual de 12 mesos amb colors (verd=confirmat, vermell=pendent, blau=notificat, groc=en revisió, gris=sense dades)
+- Llista de rebuts del client amb enllaços al detall
+
+### Timeline (FASE 8)
+- Nou component `Timeline.tsx`: línia temporal unificada amb punts de color per tipus d'esdeveniment
+- Fonts: statusHistory, messages, proofs, reconciliationMatches, caseNotes, paymentPromises
+- Integrat a `ReturnedReceiptDetail.tsx` a baix de tot
+- Backend: GET `/:id` ara inclou `reconciliation` (amb bankMovement) i `paymentPromises`
+
+### Configuració (FASE 10)
+- `AgentSection.tsx` reescrit amb:
+  - Mode segur (només guardar, no respondre)
+  - Màx. missatges desconeguts
+  - 12 plantilles editables (tots els intents)
+- Plantilles antigues (4 intents) eliminades de la UI
+
+### Tests (FASE 11)
+- 18 tests nous a `messageClassifier.test.ts` (total: 119 tests, 10 suites)
+- Cobertura: unsubscribe, wrong_person amb bloqueig, context (payment_claim amb abonament, question_about_debt amb/sense dades), payment_promise amb nous patrons
+
+### Nous endpoints
+| Ruta | Descripció |
+|------|-----------|
+| `POST /api/reconciliation/run` | Executar conciliació manual |
+| `GET /api/reconciliation/matches` | Llistar matches amb score |
+
+### Migracions
+- `Client.whatsappBlocked` (Boolean, default false)
+- `PaymentPromise` (nou model: receiptId, clientId, body, promisedDate, status)
+

@@ -22,8 +22,10 @@ export type ClosedIntent =
   | "payment_promise"
   | "greeting_or_identity"
   | "question_about_debt"
+  | "case_info_request"
   | "complaint_or_problem"
   | "wrong_person"
+  | "unsubscribe"
   | "audio"
   | "unknown";
 
@@ -35,6 +37,14 @@ export interface ClassificationInput {
   // Context del rebut (per classificació contextual)
   currentStatus?: string;          // estat actual del ReturnedReceipt
   hasExistingProof?: boolean;      // true si ja existeix almenys un PaymentProof
+  // Context addicional (FASE 2)
+  clientName?: string;             // nom del client
+  invoiceNumber?: string;          // número de factura
+  receiptAmount?: string;          // import del rebut
+  servicePeriod?: string;          // període de servei
+  pendingReceiptCount?: number;    // altres rebuts pendents del client
+  hasReconciliationMatch?: boolean;// possible abonament detectat
+  lastMessages?: string[];         // últims missatges (INBOUND) del client
 }
 
 export interface ClassificationResult {
@@ -45,6 +55,7 @@ export interface ClassificationResult {
   shouldMarkEsperantJustificant: boolean;
   shouldMarkRevisar: boolean;
   shouldReply: boolean;
+  shouldBlockWhatsapp: boolean;  // bloquejar canal WhatsApp per aquest client
 }
 
 function normalize(text: string): string {
@@ -102,9 +113,7 @@ function isGreetingOrIdentity(text: string): boolean {
     /^(?:hola|holi|hey|ei|buenos\s+dias|buenas\s+tardes|buenas\s+noches|bon\s+dia|bona\s+tarda|bona\s+nit|salut)[\s,!.]+/,
     /\b(?:qui|quien)\s+(?:ets|eres|sou|sois|parla|parles|habla|hablas)\b/,
     /\bk\s+(?:ets|eres|sou)\b/,
-    /\b(?:que|qué|què)\s+(?:ets|eres|es\s+aixo|es\s+esto)\b/,
     /\b(?:com|como)\s+(?:et\s+dius|te\s+llamas|t'has\s+de\s+dir)\b/,
-    /\b(?:que|qué|què)\s+(?:es|sou)\s+(?:aixo|aquest|este|aquest\s+numero|este\s+numero)\b/,
     /\b(?:qui|quien)\s+(?:m'ha|me\s+ha)\s+(?:escrit|enviado|enviat)\b/,
   ];
   return patterns.some((p) => p.test(text));
@@ -149,6 +158,8 @@ function isPaymentPromise(text: string): boolean {
     /(?:quan|cuando)\s+(?:pugui|pueda|cobri)\s+(?:ho\s+)?(?:pago|pagare|faig)/,
     /(?:estic|estoy)\s+(?:esperant|esperando)\s+(?:cobrar|el\s+cobro|que\s+em\s+paguin)/,
     /(?:no\s+)?(?:tinc|tengo)\s+(?:diners|dinero|fons|fondos)\s+(?:ara|ahora|en\s+aquest\s+moment)/,
+    /\b(?:la\s+)?(?:setmana|semana)\s+(?:que\s+ve|viene|propera|proxima)\b/,
+    /\b(?:a\s+)?(?:final|finals?)\s+(?:de|del)\s+mes\b/,
   ];
   return patterns.some((p) => p.test(text));
 }
@@ -213,6 +224,28 @@ function isWrongPerson(text: string): boolean {
   return patterns.some((p) => p.test(text));
 }
 
+function isUnsubscribe(text: string): boolean {
+  const patterns = [
+    /(?:no|no\s+em|no\s+me)\s+(?:m')?env[ií](?:eu|is|e|en)\s+(?:més|mes|más|mas)\s+(?:whatsapps?|missatges?|mensajes?)/,
+    /(?:deixeu|deixi|dejen|deixa|para|pareu)\s+(?:de|d')\s*(?:enviar|escriure|molestar)/,
+    /(?:esborreu|esborri|esborra|borreu|borra|elimin[eu])\s+(?:el\s+)?(?:meu|mi|el|aquest)\s+(?:n[uú]mero|whatsapp|tel[eè]fon|contacte)/,
+    /(?:baixa|baixeu-me|don[eu]-me\s+de\s+baixa)\s+(?:del\s+)?(?:canal|llista|servei)/,
+    /(?:no\s+)?(?:vull|vull\s+rebre|desitjo\s+rebre)\s+(?:més|mes|más|mas)\s+(?:missatges|whatsapps?|comunicacions?)/,
+    /(?:doneu-me|don[eu]-me|vull)\s+(?:de\s+)?baixa/,
+    /\b(?:baixa|baixa)\s+(?:del\s+)?(?:canal|whatsapp)\b/,
+    /(?:no\s+)?(?:molesteu|molestis|molesten)\s+(?:més|mes|más)\b/,
+    /(?:bloqueu|bloqueja|bloquegen)\s+(?:el\s+)?(?:meu|aquest)\s+(?:n[uú]mero|whatsapp|tel[eè]fon)/,
+    /\bstop\b/,
+    /\bbaixa\b/,
+  ];
+  return patterns.some((p) => p.test(text));
+}
+
+// case_info_request: pregunta sobre deute però amb prou context per respondre
+function canProvideCaseInfo(input: ClassificationInput): boolean {
+  return !!(input.clientName && (input.receiptAmount || input.invoiceNumber || input.servicePeriod));
+}
+
 function isPaymentMention(text: string): boolean {
   const patterns = [
     /(?:he|vaig|estic|estem)\s+(?:pagat|fet|realitzat|efectuat)/,
@@ -234,6 +267,7 @@ function emptyResult(intent: ClosedIntent): ClassificationResult {
     shouldMarkEsperantJustificant: false,
     shouldMarkRevisar: false,
     shouldReply: true,
+    shouldBlockWhatsapp: false,
   };
 }
 
@@ -276,41 +310,95 @@ export function classify(input: ClassificationInput): ClassificationResult {
     return { ...emptyResult("audio"), shouldReply: true };
   }
 
-  // 5. Greeting or identity
+  // 5. Unsubscribe (abans de greeting — té prioritat)
+  if (isUnsubscribe(normalized)) {
+    return {
+      ...emptyResult("unsubscribe"),
+      shouldMarkRevisar: true,
+      shouldBlockWhatsapp: true,
+      shouldReply: true,
+    };
+  }
+
+  // 6. Greeting or identity
   if (isGreetingOrIdentity(normalized)) {
     return { ...emptyResult("greeting_or_identity"), shouldReply: true };
   }
 
-  // 6. Wrong person
+  // 7. Wrong person → REVISAR + bloquejar WhatsApp
   if (isWrongPerson(normalized)) {
-    return { ...emptyResult("wrong_person"), shouldMarkRevisar: true, shouldReply: true };
+    return {
+      ...emptyResult("wrong_person"),
+      shouldMarkRevisar: true,
+      shouldBlockWhatsapp: true,
+      shouldReply: true,
+    };
   }
 
-  // 7. Payment claim sense fitxer → PAGAMENT_DECLARAT
-  if (isPaymentClaim(normalized)) {
-    return { ...emptyResult("payment_claim_without_proof"), shouldMarkPagamentDeclarat: true, shouldReply: true };
-  }
-
-  // 8. Payment promise → ESPERANT_JUSTIFICANT
+  // 8. Payment promise → ESPERANT_JUSTIFICANT (abans de payment_claim: promeses futures no són claims)
   if (isPaymentPromise(normalized)) {
-    return { ...emptyResult("payment_promise"), shouldMarkEsperantJustificant: true, shouldReply: true };
+    return {
+      ...emptyResult("payment_promise"),
+      shouldMarkEsperantJustificant: true,
+      shouldReply: true,
+    };
   }
 
-  // 9. Complaint or problem → REVISAR
+  // 9. Payment claim sense fitxer
+  if (isPaymentClaim(normalized)) {
+    // Si ja hi ha abonament compatible → pending_review_status (no insistir)
+    if (input.hasReconciliationMatch) {
+      return {
+        ...emptyResult("pending_review_status"),
+        shouldReply: true,
+      };
+    }
+    return {
+      ...emptyResult("payment_claim_without_proof"),
+      shouldMarkPagamentDeclarat: true,
+      shouldReply: true,
+    };
+  }
+
+  // 10. Complaint or problem → REVISAR
   if (isComplaintOrProblem(normalized)) {
-    return { ...emptyResult("complaint_or_problem"), shouldMarkRevisar: true, shouldReply: true };
+    return {
+      ...emptyResult("complaint_or_problem"),
+      shouldMarkRevisar: true,
+      shouldReply: true,
+    };
   }
 
-  // 10. Question about debt → REVISAR
+  // 11. Question about debt → si tenim context, case_info_request; si no, REVISAR
   if (isQuestionAboutDebt(normalized)) {
-    return { ...emptyResult("question_about_debt"), shouldMarkRevisar: true, shouldReply: true };
+    if (canProvideCaseInfo(input)) {
+      return {
+        ...emptyResult("case_info_request"),
+        shouldReply: true,
+      };
+    }
+    return {
+      ...emptyResult("question_about_debt"),
+      shouldMarkRevisar: true,
+      shouldReply: true,
+    };
   }
 
-  // 11. Unknown — intentem detectar si sona a pagament
+  // 12. Unknown — intentem detectar si sona a pagament
   if (isPaymentMention(normalized)) {
-    return { ...emptyResult("payment_claim_without_proof"), shouldMarkPagamentDeclarat: true, shouldReply: true };
+    if (input.hasReconciliationMatch) {
+      return {
+        ...emptyResult("pending_review_status"),
+        shouldReply: true,
+      };
+    }
+    return {
+      ...emptyResult("payment_claim_without_proof"),
+      shouldMarkPagamentDeclarat: true,
+      shouldReply: true,
+    };
   }
 
-  // 12. Fallback: unknown
+  // 13. Fallback: unknown
   return { ...emptyResult("unknown"), shouldReply: true };
 }

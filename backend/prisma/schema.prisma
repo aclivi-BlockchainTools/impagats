@@ -8,19 +8,21 @@ datasource db {
 }
 
 model Client {
-  id          Int       @id @default(autoincrement())
-  name        String
-  nif         String?
-  phone       String?
-  whatsapp    String?
-  email       String?
-  externalRef String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  name            String
+  nif             String?
+  phone           String?
+  whatsapp        String?
+  whatsappBlocked Boolean   @default(false)
+  email           String?
+  externalRef     String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   invoices         Invoice[]
   returnedReceipts ReturnedReceipt[]
+  paymentPromises  PaymentPromise[]
 }
 
 model Invoice {
@@ -104,6 +106,7 @@ model ReturnedReceipt {
   caseNotes          CaseNote[]
   matchCandidates    MatchCandidate[]
   whatsappOutbox     WhatsappOutbox[]
+  paymentPromises    PaymentPromise[]
 }
 
 model Message {
@@ -141,6 +144,21 @@ model PaymentProof {
 
   receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
   message Message?        @relation(fields: [messageId], references: [id])
+}
+
+model PaymentPromise {
+  id           Int       @id @default(autoincrement())
+  receiptId     Int
+  clientId      Int?
+  body          String?
+  promisedDate  DateTime?
+  status        String    @default("ACTIVE")
+  fulfilledAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  receipt ReturnedReceipt @relation(fields: [receiptId], references: [id])
+  client  Client?         @relation(fields: [clientId], references: [id])
 }
 
 model ReconciliationMatch {

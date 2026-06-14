@@ -6,6 +6,7 @@ const navItems = [
   { to: "/invoices", label: "Factures" },
   { to: "/import", label: "Importació bancària" },
   { to: "/receipts", label: "Impagats" },
+  { to: "/work-tray", label: "Safata" },
   { to: "/settings", label: "Configuració" },
 ];
 

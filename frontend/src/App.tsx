@@ -11,6 +11,7 @@ import ReturnedReceiptsList from "./pages/ReturnedReceiptsList";
 import ReturnedReceiptForm from "./pages/ReturnedReceiptForm";
 import ReturnedReceiptDetail from "./pages/ReturnedReceiptDetail";
 import Settings from "./pages/Settings";
+import WorkTray from "./pages/WorkTray";
 import Login from "./pages/Login";
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
               <Route path="/receipts/new" element={<ReturnedReceiptForm />} />
               <Route path="/receipts/:id" element={<ReturnedReceiptDetail />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/work-tray" element={<WorkTray />} />
             </Routes>
           </Layout>
         } />

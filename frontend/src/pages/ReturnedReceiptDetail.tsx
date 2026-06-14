@@ -7,6 +7,7 @@ import ReceiptInfo from "../components/ReceiptInfo";
 import ReceiptActions from "../components/ReceiptActions";
 import ConversationView from "../components/ConversationView";
 import ProofViewer from "../components/ProofViewer";
+import Timeline from "../components/Timeline";
 
 export default function ReturnedReceiptDetail() {
   const { id } = useParams();
@@ -179,6 +180,18 @@ export default function ReturnedReceiptDetail() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Timeline — a baix de tot, amplada completa */}
+      <div className="mt-6">
+        <Timeline
+          statusHistory={history || []}
+          messages={receipt.messages || []}
+          proofs={receipt.proofs || []}
+          reconciliationMatches={receipt.reconciliation || []}
+          caseNotes={notes || []}
+          paymentPromises={receipt.paymentPromises || []}
+        />
       </div>
     </div>
   );

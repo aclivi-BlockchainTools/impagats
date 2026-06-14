@@ -13,6 +13,18 @@ export async function enqueueMessage(params: {
   message: string;
   scheduledAt?: Date;
 }): Promise<number> {
+  // No encuar si el client té WhatsApp bloquejat
+  if (params.clientId) {
+    const client = await prisma.client.findUnique({
+      where: { id: params.clientId },
+      select: { whatsappBlocked: true },
+    });
+    if (client?.whatsappBlocked) {
+      logger.info({ clientId: params.clientId, receiptId: params.receiptId }, "No s'encua: WhatsApp bloquejat per al client");
+      return 0;
+    }
+  }
+
   // No encuar si el rebut ja està TANCAT o PAGAMENT_CONFIRMAT
   const receipt = await prisma.returnedReceipt.findUnique({
     where: { id: params.receiptId },

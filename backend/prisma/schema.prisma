@@ -238,6 +238,45 @@ model AuditLog {
   createdAt  DateTime @default(now())
 }
 
+model AgentLearningSuggestion {
+  id                  Int       @id @default(autoincrement())
+  messageId           Int?
+  clientId            Int?
+  receiptId           Int?
+  originalTextHash    String?
+  anonymizedText      String?
+  analysisType        String    @default("message_classification")
+  currentIntent       String?
+  suggestedIntent     String?
+  confidence          Float?
+  suggestedReply      String?
+  suggestedKeywords   Json?
+  suggestedStateChange String?
+  conversationQuality String?
+  agentEffectiveness  Float?
+  issues              Json?
+  suggestedImprovements Json?
+  risk                String?
+  reason              String?
+  status              String    @default("PENDING")
+  provider            String?
+  model               String?
+  createdAt           DateTime  @default(now())
+  reviewedAt          DateTime?
+}
+
+model AgentKeywordRule {
+  id        Int      @id @default(autoincrement())
+  intent    String?
+  pattern   String
+  type      String   @default("KEYWORD")
+  language  String?
+  priority  Int      @default(0)
+  active    Boolean  @default(true)
+  source    String   @default("MANUAL")
+  createdAt DateTime @default(now())
+}
+
 model AppSettings {
   key       String @id
   value     String

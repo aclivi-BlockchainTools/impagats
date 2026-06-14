@@ -386,3 +386,46 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 
 ### Notes duplicades
 - El webhook filtra notes que ja existeixen: `newNotes.filter(n => !currentNotes.includes(n))`
+
+## Aprenentatges de la sessió 2026-06-14
+
+### UI/UX — Dashboard i targetes
+- StatsCard amb `icon`, `subtitle` i `accent` (border-l-4 de color) per targetes més visuals
+- Dashboard: targetes agrupades per context (pendents → taronja, procés → blau/lila, confirmat → verd, error → vermell)
+- Mètriques: pendents revisió, notificats, esperant justificant, justificant rebut, pagament declarat, error WhatsApp, tancats/confirmats, import pendent
+
+### UI/UX — Taula d'impagats
+- Resum superior amb totals globals (servidor) i de pàgina actual
+- Filtres ràpids amb píndoles: Pendents, Notificats, Esperant justificant, Justificant rebut, Error WhatsApp
+- Columna "Seguiment" amb `SeguimentBadge` (text descriptiu + punt de color) en lloc de text curt
+- Capçaleres de columna renombrades: "Data devolució", "Factura", "Motiu devolució", "Seguiment"
+- `hover:bg-blue-50/50` a les files
+- Import alineat a la dreta amb `font-semibold`
+- Paginació: controls Anterior/Següent, `useEffect(() => { reload(); }, [page, filters])`
+- Canvi de filtre reinicia pàgina a 1
+
+### UI/UX — StatusBadge
+- `statusConfig` object amb `label`, `bg`, `text`, `dot` per cada estat
+- Badges amb punt de color (`w-1.5 h-1.5 rounded-full`) + text
+- Agrupació cromàtica: groc/taronja (pendent), blau/lila (procés), verd (confirmat), vermell (error), gris (ignorat)
+- Noms d'estat interns NO es canvien, només labels i estils
+
+### UI/UX — Detall d'impagat
+- Capçalera "fitxa de cas": ID, estat, client, WhatsApp, import, període, última acció
+- ReceiptInfo: layout 2 columnes amb grid, motius bancaris traduïts al català
+- Traducció: FALTA DE FONDOS → "Falta de fons", COMPTE BLOQUEJAT → "Compte bloquejat", etc.
+- `<details>` desplegable amb dades bancàries crues originals
+
+### UI/UX — Importació bancària
+- Títol "Importació bancària", descripcions de cada format
+- Caixa "Flux recomanat" amb passos numerats
+- Targetes de resultat amb colors per categoria (importats, duplicats, devolucions, matching, conciliacions)
+- Layout: menú "Importar CSV" → "Importació bancària"
+
+### Backend — uniqueClients
+- `GET /api/returned-receipts`: resposta inclou `uniqueClients` (groupBy clientId) a més de `data`, `total`, `page`, `limit`
+- `Promise.all` amb 3 queries: findMany, count, groupBy
+
+### WorkTray
+- Imports amb `formatAmount()` (suporta Decimal strings de Prisma)
+

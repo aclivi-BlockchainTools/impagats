@@ -21,7 +21,7 @@ router.get("/", asyncHandler(async (_req: Request, res: Response) => {
 router.put("/", asyncHandler(async (req: Request, res: Response) => {
   const updates = req.body as Record<string, string>;
   for (const [key, value] of Object.entries(updates)) {
-    if (!KNOWN_SETTINGS.includes(key) && !key.startsWith("agent.")) continue;
+    if (!KNOWN_SETTINGS.includes(key) && !key.startsWith("agent.") && !key.startsWith("observer.") && !key.startsWith("template_")) continue;
     await prisma.appSettings.upsert({
       where: { key },
       update: { value },

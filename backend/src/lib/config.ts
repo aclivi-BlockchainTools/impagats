@@ -9,4 +9,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "",
   adminEmail: process.env.ADMIN_EMAIL || "",
   adminPasswordHash: process.env.ADMIN_PASSWORD_HASH || "",
+  openaiApiKey: process.env.OPENAI_API_KEY || "",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
 };

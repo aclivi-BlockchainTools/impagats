@@ -34,7 +34,15 @@ Si ja has fet l'abonament, envia'ns si us plau el justificant bancari per aquest
 
 Aquest canal és automàtic i només serveix per rebre justificants. Per qualsevol dubte sobre factures, imports o serveis, contacta amb nosaltres per les vies habituals.
 
-Gràcies.`;
+---
+
+Somos {{company_name}}. Te informamos que hay una incidencia con el cobro del recibo correspondiente a la factura {{invoice_number}}, por importe de {{amount}} €.
+
+Si ya has hecho el pago, envíanos por favor el justificante bancario por este mismo WhatsApp.
+
+Este canal es automático y solo sirve para recibir justificantes. Para cualquier duda sobre facturas, importes o servicios, contacta con nosotros por las vías habituales.
+
+Gracias.`;
 
 // --- Missatge per enviament múltiple ---
 export const TEMPLATE_MULTIPLE_NOTIFICATION = `Hola {{client_name}},
@@ -49,7 +57,19 @@ Si ja has fet els abonaments, envia'ns si us plau els justificants bancaris per 
 
 Aquest canal és automàtic i només serveix per rebre justificants. Per qualsevol dubte sobre factures, imports o serveis, contacta amb nosaltres per les vies habituals.
 
-Gràcies.`;
+---
+
+Somos {{company_name}}. Te informamos que hay incidencias con el cobro de los siguientes recibos:
+
+{{receipts_list}}
+
+Importe total: {{total_amount}} €
+
+Si ya has hecho los pagos, envíanos por favor los justificantes bancarios por este mismo WhatsApp.
+
+Este canal es automático y solo sirve para recibir justificantes. Para cualquier duda sobre facturas, importes o servicios, contacta con nosotros por las vías habituales.
+
+Gracias.`;
 
 // --- greeting_or_identity: Salutació o "qui ets" ---
 export const TEMPLATE_GREETING_OR_IDENTITY = `Hola. Soc l'assistent automàtic de {{company_name}} per gestionar justificants de pagament relacionats amb incidències de cobrament.

@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import CompanySection from "../components/CompanySection";
 import OpenWASection from "../components/OpenWASection";
 import AgentSection from "../components/AgentSection";
+import AgentObserverSection from "../components/AgentObserverSection";
 import TemplatesSection from "../components/TemplatesSection";
 
 const DEFAULT_TEMPLATE = `Hola {{client_name}},
@@ -149,6 +150,10 @@ export default function Settings() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <AgentSection settings={settings} onChange={set} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <AgentObserverSection />
           </div>
         </div>
 

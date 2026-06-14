@@ -338,3 +338,51 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 
 - Backend: `cd backend && npm test` (112 tests, 10 suites), `npm run build` (tsc)
 - Frontend: `cd frontend && npm run build` (tsc + vite)
+
+## Aprenentatges de la sessió 2026-06-12/14
+
+### Agent WhatsApp — intents i plantilles
+- 11 intents tancats: greeting_or_identity, proof_media, additional_proof_received, pending_review_status, payment_claim_without_proof, payment_promise, question_about_debt, complaint_or_problem, wrong_person, audio, unknown
+- Ordre de classificació: media → PENDENT_REVISIO context → audio → greeting → wrong_person → payment_claim → payment_promise → complaint → question → unknown
+- Plantilles editables via AppSettings amb clau `template_{intent}` (ex: `template_greeting`). Valors per defecte a replyTemplates.ts
+- Anti-repetició: 30 min per intent, 3 consecutius fora de flux → REVISAR. Proof_media i errors de guardat bypassen anti-repetició
+- `pending_review_status` només s'activa si currentStatus === "PENDENT_REVISIO"
+- `additional_proof_received` quan hasExistingProof i arriba un nou media
+- Resposta manual: `POST /api/returned-receipts/:id/reply` — abans no cridava processOneMessage, els missatges quedaven PENDING
+
+### Pipeline media OpenWA
+- Webhook rep `media: { mimetype, filename, data }` — **no** url ni base64
+- `media.data` és el fitxer en base64 → `Buffer.from(media.data, "base64")`
+- `downloadMedia(url, apiKey?)` amb header X-Api-Key per descàrrega
+- MIME: prioritza `media.mimetype` del webhook. Si és octet-stream, infereix de l'extensió del fitxer
+- `isAllowedMimeType` neteja paràmetres (`split(";")`) i normalitza variants (`image/jpg` → `image/jpeg`)
+- Guardat: `storage/proofs/YYYY/MM/proof_{receiptId}_{timestamp}_{hash}.{ext}`
+- Logging en 4 passos: [saveProof] Fallada 1/4 (MIME), 2/4 (directori), 3/4 (escriptura), 4/4 (BD)
+- Endpoint debug: `GET /api/health/media-debug`
+- Servir fitxers: `GET /api/proofs/:id/file` amb Content-Type i Content-Disposition
+
+### SEPA XML
+- `computeServicePeriod(date, invoiceDate?)`: si hi ha invoiceDate → mes de la factura; si no → mes anterior a la data d'emissió
+- Dedup: primer per importHash, després per concept+date+amount+reference (fallback per imports antics sense hash)
+- Fuzzy matching per paraula exacta (NO substring — evita falsos positius amb inicials com "M" dins "DRAMANE")
+- MatchCandidate: receiptId ha de ser receipt.id (no movement.id) — FK violation si no
+- `Valor` = data d'emissió del rebut (DD/MM/YY), `invoiceDate` = data de la factura (del Ustrd)
+
+### UX — Detall d'impagat
+- Conversa WhatsApp a amplada completa, ordre cronològic, auto-scroll al final amb useRef
+- Historial d'estats i notes amb max-height i scroll independent
+- ProofViewer: miniatures per imatges, icona per PDF, enllaços "Veure"/"Obrir"
+
+### Dashboard
+- Períodes ordenats per `periodToSort()` (YYYYMM), no alfabèticament
+- Deutors amb >1 període: fons ambre + icona 🔁
+
+### Configuració
+- CORS callback-style per xarxa local
+- Vite: `host: "0.0.0.0"`, port fix 5174 al vite.config.ts
+- Arrencar Vite SEMPRE des del directori frontend: `(cd frontend && npx vite --host 0.0.0.0 --port 5174)`
+- Si s'arrenca des d'un altre directori, Vite no troba index.html i retorna 404
+- Chrome de Playwright: `/opt/google/chrome/chrome` ha de ser el Chromium de Playwright, no el del snap
+
+### Notes duplicades
+- El webhook filtra notes que ja existeixen: `newNotes.filter(n => !currentNotes.includes(n))`

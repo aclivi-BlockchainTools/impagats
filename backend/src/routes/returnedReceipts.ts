@@ -42,7 +42,7 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
     if (to) where.returnDate.lte = new Date(to as string);
   }
 
-  const [receipts, total] = await Promise.all([
+  const [receipts, total, clientGroups] = await Promise.all([
     prisma.returnedReceipt.findMany({
       where,
       skip,
@@ -51,8 +51,13 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
       orderBy: { returnDate: "desc" },
     }),
     prisma.returnedReceipt.count({ where }),
+    prisma.returnedReceipt.groupBy({
+      by: ["clientId"],
+      where,
+    }),
   ]);
-  res.json({ data: receipts, total, page, limit });
+  const uniqueClients = clientGroups.length;
+  res.json({ data: receipts, total, page, limit, uniqueClients });
 }));
 
 router.post("/", asyncHandler(async (req: Request, res: Response) => {

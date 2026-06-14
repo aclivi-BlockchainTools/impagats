@@ -7,15 +7,12 @@ import { formatAmount } from "../lib/api";
 
 function formatDataEmissio(valor: string | undefined): string {
   if (!valor) return "-";
-  // Si ja està en format DD/MM/YY o DD/MM/YYYY, retornar tal qual
   if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(valor)) return valor;
-  // Si és ISO (YYYY-MM-DD), convertir a DD/MM/YYYY
   const isoMatch = valor.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1].slice(2)}`;
   return valor;
 }
 
-// Mapa de mesos en català a número
 const CAT_MONTHS: Record<string, number> = {
   "gener": 1, "febrer": 2, "març": 3, "abril": 4,
   "maig": 5, "juny": 6, "juliol": 7, "agost": 8,
@@ -24,12 +21,63 @@ const CAT_MONTHS: Record<string, number> = {
 
 function periodToSort(period: string | null | undefined): number {
   if (!period) return 0;
-  // Format: "Mes Any" (ex: "Juny 2026")
   const parts = period.trim().split(/\s+/);
   if (parts.length < 2) return 0;
   const month = CAT_MONTHS[parts[0].toLowerCase()] || 0;
   const year = parseInt(parts[1]) || 0;
-  return year * 100 + month; // 202606, 202605, etc.
+  return year * 100 + month;
+}
+
+// Traducció de codis de motiu bancari
+function translateReturnReason(reason: string | null | undefined): string {
+  if (!reason) return "-";
+  const upper = reason.toUpperCase().trim();
+  const translations: Record<string, string> = {
+    "FALTA DE FONDOS": "Falta de fons",
+    "FALTA DE FONS": "Falta de fons",
+    "COMPTE BLOQUEJAT": "Compte bloquejat",
+    "COMPTE CANCELAT": "Compte cancel·lat",
+    "OPER NO AUTO/MAND": "Operació no autoritzada / mandat",
+    "CUENTA CANCELADA": "Compte cancel·lat",
+    "CUENTA BLOQUEADA": "Compte bloquejat",
+  };
+  // Cerca exacta primer, després cerca per substring
+  if (translations[upper]) return translations[upper];
+  for (const [key, val] of Object.entries(translations)) {
+    if (upper.includes(key)) return val;
+  }
+  return reason;
+}
+
+// Quick filter pills
+const QUICK_FILTERS: { key: string; label: string; statuses: string[]; color: string; activeColor: string }[] = [
+  { key: "pending",  label: "Pendents",     statuses: ["DETECTAT", "EMPARELLAT", "REVISAR"],      color: "bg-white border-gray-200 text-gray-700", activeColor: "bg-orange-600 text-white border-orange-600" },
+  { key: "notified", label: "Notificats",   statuses: ["NOTIFICAT"],                               color: "bg-white border-gray-200 text-gray-700", activeColor: "bg-purple-600 text-white border-purple-600" },
+  { key: "waiting",  label: "Esperant justificant", statuses: ["ESPERANT_JUSTIFICANT"],            color: "bg-white border-gray-200 text-gray-700", activeColor: "bg-indigo-600 text-white border-indigo-600" },
+  { key: "proof",    label: "Justificant rebut",    statuses: ["JUSTIFICANT_REBUT", "PENDENT_REVISIO"], color: "bg-white border-gray-200 text-gray-700", activeColor: "bg-emerald-600 text-white border-emerald-600" },
+  { key: "error",    label: "Error WhatsApp",       statuses: ["ERROR_WHATSAPP"],                  color: "bg-white border-gray-200 text-gray-700", activeColor: "bg-red-600 text-white border-red-600" },
+];
+
+// Seguiment — estat de l'agent/whatsapp
+function SeguimentBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string; dot: string }> = {
+    NOTIFICAT:            { label: "WhatsApp enviat",    color: "text-green-700", dot: "bg-green-500" },
+    ESPERANT_JUSTIFICANT: { label: "Esperant justificant", color: "text-yellow-700", dot: "bg-yellow-500" },
+    PAGAMENT_DECLARAT:    { label: "Pagament declarat",  color: "text-rose-700",   dot: "bg-rose-500" },
+    JUSTIFICANT_REBUT:    { label: "Justificant rebut",  color: "text-teal-700",   dot: "bg-teal-500" },
+    ERROR_WHATSAPP:       { label: "Error WhatsApp",     color: "text-red-700",    dot: "bg-red-500" },
+    PENDENT_REVISIO:      { label: "Pendent revisió",    color: "text-amber-700",  dot: "bg-amber-500" },
+    PAGAMENT_CONFIRMAT:   { label: "Pagament confirmat", color: "text-emerald-700",dot: "bg-emerald-500" },
+    TANCAT:               { label: "Tancat",             color: "text-gray-500",   dot: "bg-gray-400" },
+  };
+  const info = map[status];
+  if (!info) return <span className="text-gray-400 text-xs">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
+      <span className={info.color}>{info.label}</span>
+    </span>
+  );
 }
 
 export default function ReturnedReceiptsList() {
@@ -39,9 +87,12 @@ export default function ReturnedReceiptsList() {
   const [sending, setSending] = useState(false);
   const [sortKey, setSortKey] = useState<string>("returnDate");
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
-  const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(filters));
+  const [quickFilter, setQuickFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts({ ...filters, page: String(page), limit: "50" }));
 
-  useEffect(() => { reload(); }, [filters]);
+  useEffect(() => { setPage(1); }, [filters]);
+  useEffect(() => { reload(); }, [page, filters]);
 
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
@@ -54,6 +105,11 @@ export default function ReturnedReceiptsList() {
         (r.notes && r.notes.toLowerCase().includes(q)) ||
         (r.returnReason && r.returnReason.toLowerCase().includes(q))
       );
+    }
+    // Quick filter
+    if (quickFilter) {
+      const qf = QUICK_FILTERS.find(f => f.key === quickFilter);
+      if (qf) list = list.filter((r: any) => qf.statuses.includes(r.status));
     }
     // Sort
     return [...list].sort((a: any, b: any) => {
@@ -72,7 +128,14 @@ export default function ReturnedReceiptsList() {
       if (va > vb) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [receipts, search, sortKey, sortDir]);
+  }, [receipts, search, sortKey, sortDir, quickFilter]);
+
+  // Resum de dades visibles
+  const totalVisible = filtered.length;
+  const totalImportVisible = filtered.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0);
+  const selectedReceipts = filtered.filter((r: any) => selected.has(r.id));
+  const selectedImport = selectedReceipts.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0);
+  const totalClients = receipts?.uniqueClients ?? 0;
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -85,6 +148,12 @@ export default function ReturnedReceiptsList() {
     </th>
   );
 
+  const SortHeadRight = ({ col, label }: { col: string; label: string }) => (
+    <th className="text-right p-3 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort(col)}>
+      {label} {sortKey === col ? (sortDir === "asc" ? "▲" : "▼") : ""}
+    </th>
+  );
+
   const toggle = (id: number) => {
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -92,7 +161,7 @@ export default function ReturnedReceiptsList() {
   };
 
   const toggleAll = () => {
-    if (selected.size === filtered.length) setSelected(new Set());
+    if (selected.size === totalVisible) setSelected(new Set());
     else setSelected(new Set(filtered.map((r: any) => r.id)));
   };
 
@@ -114,8 +183,7 @@ export default function ReturnedReceiptsList() {
     reload();
   };
 
-  // Check if all selected are from the same client
-  const selectedReceipts = filtered.filter((r: any) => selected.has(r.id));
+  // WhatsApp massiu: només si tots els seleccionats són del mateix client
   const sameClient = selected.size >= 2 && new Set(selectedReceipts.map((r: any) => r.clientId)).size === 1;
   const canSend = sameClient && selectedReceipts.every((r: any) =>
     ["DETECTAT", "EMPARELLAT", "REVISAR", "ERROR_WHATSAPP"].includes(r.status)
@@ -173,96 +241,122 @@ export default function ReturnedReceiptsList() {
           <Link to="/receipts/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Nou impagat</Link>
         </div>
       </div>
-      <div className="bg-white rounded-lg shadow p-4 mb-4 flex gap-4 flex-wrap">
-        <select className="border rounded px-3 py-2 text-sm" value={filters.status || ""}
-          onChange={(e) => setFilters(e.target.value ? { ...filters, status: e.target.value } : {})}>
-          <option value="">Tots els estats</option>
-          <option value="DETECTAT">Detectat</option>
-          <option value="EMPARELLAT">Emparellat</option>
-          <option value="REVISAR">Revisar</option>
-          <option value="NOTIFICAT">Notificat</option>
-          <option value="ESPERANT_JUSTIFICANT">Esperant justificant</option>
-          <option value="PAGAMENT_DECLARAT">Pagament declarat</option>
-          <option value="JUSTIFICANT_REBUT">Justificant rebut</option>
-          <option value="PENDENT_REVISIO">Pendent revisió</option>
-          <option value="PAGAMENT_CONFIRMAT">Pagament confirmat</option>
-          <option value="TANCAT">Tancat</option>
-          <option value="ERROR_WHATSAPP">Error WhatsApp</option>
-          <option value="IGNORAT">Ignorat</option>
-        </select>
-        <input className="border rounded px-3 py-2 text-sm flex-1" placeholder="Cercar impagats..." value={search} onChange={(e) => setSearch(e.target.value)} />
+
+      {/* Filtres */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4 space-y-3">
+        {/* Filtres ràpids */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_FILTERS.map((qf) => (
+            <button
+              key={qf.key}
+              onClick={() => setQuickFilter(quickFilter === qf.key ? "" : qf.key)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
+                ${quickFilter === qf.key ? qf.activeColor : qf.color + " hover:border-gray-300"}`}
+            >
+              {qf.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtre d'estat + cerca */}
+        <div className="flex gap-4 flex-wrap">
+          <select className="border rounded px-3 py-2 text-sm" value={filters.status || ""}
+            onChange={(e) => setFilters(e.target.value ? { ...filters, status: e.target.value } : {})}>
+            <option value="">Tots els estats</option>
+            <option value="DETECTAT">Detectat</option>
+            <option value="EMPARELLAT">Emparellat</option>
+            <option value="REVISAR">Revisar</option>
+            <option value="NOTIFICAT">Notificat</option>
+            <option value="ESPERANT_JUSTIFICANT">Esperant justificant</option>
+            <option value="PAGAMENT_DECLARAT">Pagament declarat</option>
+            <option value="JUSTIFICANT_REBUT">Justificant rebut</option>
+            <option value="PENDENT_REVISIO">Pendent revisió</option>
+            <option value="PAGAMENT_CONFIRMAT">Pagament confirmat</option>
+            <option value="TANCAT">Tancat</option>
+            <option value="ERROR_WHATSAPP">Error WhatsApp</option>
+            <option value="IGNORAT">Ignorat</option>
+          </select>
+          <input className="border rounded px-3 py-2 text-sm flex-1" placeholder="Cercar impagats..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
       </div>
+
+      {/* Resum */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="flex flex-wrap gap-6 text-sm">
+          <div>
+            <span className="text-gray-500">Total impagats:</span>{" "}
+            <span className="font-semibold text-lg">{receipts?.total || 0}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Clients diferents:</span>{" "}
+            <span className="font-semibold text-lg">{totalClients}</span>
+          </div>
+          <div className="border-l border-gray-200 pl-6">
+            <span className="text-gray-500">En aquesta pàgina:</span>{" "}
+            <span className="font-semibold">{totalVisible} impagats</span>
+            <span className="text-gray-400"> · {totalImportVisible.toFixed(2)} €</span>
+          </div>
+          {selected.size > 0 && (
+            <>
+              <div className="border-l border-gray-200 pl-6">
+                <span className="text-gray-500">Seleccionats:</span>{" "}
+                <span className="font-semibold text-blue-700">{selected.size}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Import seleccionat:</span>{" "}
+                <span className="font-semibold text-blue-700">{selectedImport.toFixed(2)} €</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Taula */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
-              <SortHead col="returnDate" label="Data dev." />
+              <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === totalVisible && totalVisible > 0} onChange={toggleAll} /></th>
+              <SortHead col="returnDate" label="Data devolució" />
               <SortHead col="client" label="Client" />
-              <th className="text-left p-3">Núm. Factura</th>
-              <SortHead col="returnReason" label="Motiu" />
+              <th className="text-left p-3">Factura</th>
+              <SortHead col="returnReason" label="Motiu devolució" />
               <SortHead col="servicePeriod" label="Període" />
               <th className="text-left p-3">Data emissió</th>
-              <SortHead col="amount" label="Import" />
+              <SortHeadRight col="amount" label="Import" />
               <SortHead col="status" label="Estat" />
-              <th className="text-left p-3">Agent</th>
+              <th className="text-left p-3">Seguiment</th>
               <th className="text-right p-3">Accions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((r: any) => (
-              <tr key={r.id} className="border-t">
+              <tr key={r.id} className="border-t hover:bg-blue-50/50 transition-colors">
                 <td className="p-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
-                <td className="p-3">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
-                <td className="p-3 max-w-[160px] truncate" title={r.client?.name}>{r.client?.name || "-"}</td>
-                <td className="p-3">{r.receiptReference || "-"}</td>
-                <td className="p-3 text-xs max-w-[160px] truncate" title={r.returnReason}>{r.returnReason || "-"}</td>
+                <td className="p-3 whitespace-nowrap">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
+                <td className="p-3 max-w-[160px]">
+                  <span className="font-medium truncate block" title={r.client?.name}>
+                    {r.client?.name || <span className="text-orange-500">No assignat</span>}
+                  </span>
+                </td>
+                <td className="p-3 font-mono text-xs">{r.receiptReference || "-"}</td>
+                <td className="p-3 text-xs max-w-[160px]">
+                  <span title={r.returnReason}>
+                    {translateReturnReason(r.returnReason)}
+                  </span>
+                </td>
                 <td className="p-3 text-sm">{r.servicePeriod || "-"}</td>
                 <td className="p-3 text-sm">{formatDataEmissio(r.bankMovement?.rawData?.Valor)}</td>
-                <td className="p-3 text-right">{formatAmount(r.returnedAmount)} €</td>
+                <td className="p-3 text-right font-semibold whitespace-nowrap">{formatAmount(r.returnedAmount)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>
-                <td className="p-3">
-                  {r.status === "NOTIFICAT" && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
-                      <span className="text-green-700 text-xs">enviat</span>
-                    </span>
-                  )}
-                  {r.status === "ESPERANT_JUSTIFICANT" && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full inline-block" />
-                      <span className="text-yellow-700 text-xs">esperant</span>
-                    </span>
-                  )}
-                  {r.status === "PAGAMENT_DECLARAT" && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-rose-500 rounded-full inline-block" />
-                      <span className="text-rose-700 text-xs">declarat</span>
-                    </span>
-                  )}
-                  {r.status === "JUSTIFICANT_REBUT" && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-teal-500 rounded-full inline-block" />
-                      <span className="text-teal-700 text-xs">justificant</span>
-                    </span>
-                  )}
-                  {r.status === "ERROR_WHATSAPP" && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
-                      <span className="text-red-700 text-xs">error</span>
-                    </span>
-                  )}
-                  {!["NOTIFICAT", "ESPERANT_JUSTIFICANT", "PAGAMENT_DECLARAT", "JUSTIFICANT_REBUT", "ERROR_WHATSAPP"].includes(r.status) && (
-                    <span className="text-gray-400 text-xs">-</span>
-                  )}
-                </td>
-                <td className="p-3 text-right space-x-2">
+                <td className="p-3"><SeguimentBadge status={r.status} /></td>
+                <td className="p-3 text-right space-x-2 whitespace-nowrap">
                   <Link to={`/receipts/${r.id}`} className="text-blue-600 hover:underline">Detall</Link>
                   <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:underline">Eliminar</button>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search ? "Cap coincidència" : "Cap impagat"}</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search || quickFilter ? "Cap coincidència" : "Cap impagat"}</td></tr>}
             {receipts && filtered.length > 0 && (
               <tr><td colSpan={11} className="p-3 text-right text-sm text-gray-500">
                 Mostrant {filtered.length} de {receipts.total} — Pàg {receipts.page}
@@ -271,6 +365,31 @@ export default function ReturnedReceiptsList() {
           </tbody>
         </table>
       </div>
+
+      {/* Paginació */}
+      {receipts && receipts.total > receipts.limit && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-500">
+            Pàgina {receipts.page} de {Math.ceil(receipts.total / receipts.limit)}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p: number) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => setPage((p: number) => p + 1)}
+              disabled={page >= Math.ceil(receipts.total / receipts.limit)}
+              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Següent →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

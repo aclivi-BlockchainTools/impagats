@@ -80,6 +80,9 @@ Completat: sí
 
 ## Notes
 
+- 2026-06-14 16:58: 9 fitxers frontend modificats. Frontend: build OK. Backend: 101 tests passen (no tocat).
+- 2026-06-14 16:58: Modificats 7 fitxers frontend (Dashboard, StatsCard, ReturnedReceiptsList, ReturnedReceiptDetail, ReceiptInfo, BankImport, StatusBadge, Layout, WorkTray). Backend NO tocat. → Implementat:sí Verificat:no Completat:no
+- 2026-06-14 16:46: Commit amb 24 fitxers (1530+, 564-): agent WhatsApp, pipeline media, SEPA XML, UX. CLAUDE.md actualitzat amb aprenentatges. Push a master. → Implementat:no Verificat:no Completat:no
 - 2026-06-12 17:08: Descobert que OpenWA envia el media amb les claus {mimetype, filename, data} — NO url ni base64. El data és el fitxer en base64. Refactoritzat el webhook per: 1) extreure buffer de media.data (base64), 2) fallback a media.url (si existís en futur), 3) fallback a media.base64. Refactoritzat proofService per usar storage/proofs/YYYY/MM/, funció getExtension() amb mapa MIME→ext, noms de fitxer: proof_{receiptId}_{timestamp}_{hash}.{ext}. Afegit endpoint debug /api/health/media-debug. 113 tests OK, build OK. → Implementat:sí Verificat:no Completat:no
 - 2026-06-12 16:37: Intent greeting_or_identity, 9 plantilles reescrites més naturals, logging detallat a proofService (4 passos) i downloadMedia (HTTP/bufer/xarxa), anti-repetició amb greeting com a fora de flux. 113 tests, build OK.
 - 2026-06-12 16:37: Afegit intent greeting_or_identity amb detector isGreetingOrIdentity (reconeix salutacions, 'qui ets', 'k ets'). Plantilles reescrites per ser més comunicatives: greeting_or_identity, proof_received, proof_save_error, payment_claim, payment_promise, question_about_debt, complaint_or_problem, audio, unknown. Millor logging a proofService (4 passos numerats) i downloadMedia (HTTP, buffer buit, xarxa). Anti-repetició: greeting_or_identity afegit a OUT_OF_FLOW_INTENTS. Tests: 113 OK. Build: OK. → Implementat:sí Verificat:no Completat:no

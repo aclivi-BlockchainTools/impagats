@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api } from "../lib/api";
+import { api, formatAmount } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 import ReceiptInfo from "../components/ReceiptInfo";
 import ReceiptActions from "../components/ReceiptActions";
@@ -35,11 +35,66 @@ export default function ReturnedReceiptDetail() {
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
   if (!receipt) return <div className="text-gray-500">No trobat</div>;
 
+  // Determinar última acció
+  const lastAction = (() => {
+    if (receipt.messages?.length > 0) {
+      const lastMsg = receipt.messages[receipt.messages.length - 1];
+      if (lastMsg.direction === "OUTBOUND") return "WhatsApp enviat";
+      if (lastMsg.direction === "INBOUND") return "Resposta rebuda";
+    }
+    if (receipt.proofs?.length > 0) return "Justificant rebut";
+    return null;
+  })();
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Impagat #{receipt.id}</h1>
-        <StatusBadge status={receipt.status} />
+      {/* Capçalera de fitxa de cas */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Impagat</div>
+            <div className="text-2xl font-bold">#{receipt.id}</div>
+          </div>
+
+          <div className="h-10 w-px bg-gray-200" />
+
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Estat</div>
+            <StatusBadge status={receipt.status} />
+          </div>
+
+          <div className="h-10 w-px bg-gray-200" />
+
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Client</div>
+            <div className="font-semibold">{receipt.client?.name || <span className="text-orange-500">No assignat</span>}</div>
+            {receipt.client?.whatsapp && <div className="text-xs text-gray-400">+{receipt.client.whatsapp}</div>}
+          </div>
+
+          <div className="h-10 w-px bg-gray-200" />
+
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Import</div>
+            <div className="text-xl font-bold">{formatAmount(receipt.returnedAmount)} €</div>
+          </div>
+
+          <div className="h-10 w-px bg-gray-200" />
+
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Període</div>
+            <div className="font-medium">{receipt.servicePeriod || "-"}</div>
+          </div>
+
+          {lastAction && (
+            <>
+              <div className="h-10 w-px bg-gray-200" />
+              <div>
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Última acció</div>
+                <div className="text-sm text-gray-700">{lastAction}</div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -47,7 +102,7 @@ export default function ReturnedReceiptDetail() {
         <ReceiptActions receipt={receipt} onReload={reload} />
       </div>
 
-      {/* Conversa WhatsApp — amplada completa */}
+      {/* Conversa WhatsApp */}
       <div className="mt-6">
         <ConversationView messages={receipt.messages} />
       </div>
@@ -57,7 +112,7 @@ export default function ReturnedReceiptDetail() {
         <ProofViewer proofs={receipt.proofs} />
       </div>
 
-      {/* Case Notes + Status History — amb scroll */}
+      {/* Case Notes + Status History */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div className="bg-white rounded-lg shadow p-6 flex flex-col">
           <h2 className="font-semibold text-lg mb-4 flex-shrink-0">Notes internes</h2>

@@ -33,14 +33,33 @@ export default function BankImport() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Importar moviments</h1>
+      <h1 className="text-2xl font-bold mb-2">Importació bancària</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Importa moviments bancaris (CSV) i devolucions SEPA (XML) per detectar rebuts retornats.
+      </p>
+
+      {/* Flux recomanat */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6">
+        <h2 className="font-semibold text-blue-800 mb-2">Flux recomanat</h2>
+        <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+          <li>Importar CSV de rebuts girats o moviments bancaris</li>
+          <li>Importar XML de devolucions pain.002</li>
+          <li>Revisar impagats detectats</li>
+          <li>Enviar WhatsApp als deutors</li>
+          <li>Revisar justificants i abonaments rebuts</li>
+        </ol>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* CSV import */}
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <h2 className="font-semibold text-lg">CSV bancari</h2>
-          <p className="text-sm text-gray-600">
-            Fitxer CSV amb columnes de concepte, import, data i referència. Delimitador: punt i coma (;).
-          </p>
+          <div>
+            <h2 className="font-semibold text-lg">CSV bancari / CSB43</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Importa moviments bancaris per detectar devolucions i buscar possibles abonaments.
+              Fitxer CSV amb delimitador punt i coma (;). Columnes de concepte, import, data i referència.
+            </p>
+          </div>
           <input type="file" accept=".csv,text/csv,application/vnd.ms-excel" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} className="block w-full text-sm" />
           <button onClick={handleImportCsv} disabled={!csvFile || loading}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 text-sm">
@@ -50,10 +69,13 @@ export default function BankImport() {
 
         {/* SEPA XML import */}
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <h2 className="font-semibold text-lg">SEPA XML (pain.002)</h2>
-          <p className="text-sm text-gray-600">
-            Fitxer XML de devolucions SEPA (Customer Payment Status Report). Extreu nom del deutor, IBAN, import, data i núm. factura.
-          </p>
+          <div>
+            <h2 className="font-semibold text-lg">SEPA XML pain.002</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Importa devolucions SEPA i marca rebuts retornats. Extreu nom del deutor, IBAN, import,
+              data i número de factura del fitxer XML de Customer Payment Status Report.
+            </p>
+          </div>
           <input type="file" accept=".xml,text/xml,application/xml" onChange={(e) => setXmlFile(e.target.files?.[0] || null)} className="block w-full text-sm" />
           <button onClick={handleImportXml} disabled={!xmlFile || loading}
             className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50 text-sm">
@@ -62,15 +84,53 @@ export default function BankImport() {
         </div>
       </div>
 
+      {/* Resultats */}
       {result && (
-        <div className="mt-6 bg-white rounded-lg shadow p-6 max-w-lg text-sm space-y-1">
-          {result.imported !== undefined && <p>Moviments importats: <strong>{result.imported}</strong></p>}
-          {result.skipped !== undefined && <p>Saltats: <strong>{result.skipped}</strong></p>}
-          {result.detected !== undefined && <p>Devolucions detectades: <strong>{result.detected}</strong></p>}
-          {result.matched !== undefined && <p>Auto-matching: <strong>{result.matched}</strong></p>}
-          {result.reconciled !== undefined && <p>Conciliacions: <strong>{result.reconciled}</strong></p>}
-          {result.total !== undefined && <p>Total transaccions XML: <strong>{result.total}</strong></p>}
-          {result.message && <p className="text-green-700 font-medium mt-2">{result.message}</p>}
+        <div className="mt-6">
+          <h2 className="font-semibold text-lg mb-3">Resultat de la importació</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {result.imported !== undefined && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Moviments importats</div>
+                <div className="text-xl font-bold mt-1">{result.imported}</div>
+              </div>
+            )}
+            {result.skipped !== undefined && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wide">Duplicats / no importats</div>
+                <div className="text-xl font-bold mt-1">{result.skipped}</div>
+              </div>
+            )}
+            {result.detected !== undefined && (
+              <div className="bg-yellow-50 rounded-lg shadow p-4 border-l-4 border-yellow-400">
+                <div className="text-xs text-yellow-700 uppercase tracking-wide font-medium">Devolucions detectades</div>
+                <div className="text-xl font-bold mt-1 text-yellow-800">{result.detected}</div>
+              </div>
+            )}
+            {result.matched !== undefined && (
+              <div className="bg-blue-50 rounded-lg shadow p-4 border-l-4 border-blue-400">
+                <div className="text-xs text-blue-700 uppercase tracking-wide font-medium">Coincidències automàtiques</div>
+                <div className="text-xl font-bold mt-1 text-blue-800">{result.matched}</div>
+              </div>
+            )}
+            {result.reconciled !== undefined && (
+              <div className="bg-green-50 rounded-lg shadow p-4 border-l-4 border-green-400">
+                <div className="text-xs text-green-700 uppercase tracking-wide font-medium">Conciliacions</div>
+                <div className="text-xl font-bold mt-1 text-green-800">{result.reconciled}</div>
+              </div>
+            )}
+            {result.total !== undefined && (
+              <div className="bg-indigo-50 rounded-lg shadow p-4 border-l-4 border-indigo-400">
+                <div className="text-xs text-indigo-700 uppercase tracking-wide font-medium">Total transaccions XML</div>
+                <div className="text-xl font-bold mt-1 text-indigo-800">{result.total}</div>
+              </div>
+            )}
+          </div>
+          {result.message && (
+            <p className="mt-4 text-green-700 font-medium text-sm bg-green-50 border border-green-200 rounded-lg p-3">
+              {result.message}
+            </p>
+          )}
         </div>
       )}
     </div>

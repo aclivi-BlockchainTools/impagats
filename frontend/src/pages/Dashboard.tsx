@@ -1,8 +1,20 @@
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
-import { Link } from "react-router-dom";
 import StatsCard from "../components/StatsCard";
 import WorkTray from "../components/WorkTray";
+
+const ACCENT = {
+  red:    "border-l-red-400",
+  orange: "border-l-orange-400",
+  amber:  "border-l-amber-400",
+  blue:   "border-l-blue-400",
+  purple: "border-l-purple-400",
+  indigo: "border-l-indigo-400",
+  rose:   "border-l-rose-400",
+  emerald:"border-l-emerald-400",
+  green:  "border-l-green-400",
+  gray:   "border-l-gray-300",
+};
 
 export default function Dashboard() {
   const { data, loading, error } = useApi(() => api.getDashboard());
@@ -14,23 +26,53 @@ export default function Dashboard() {
   if (!data) return <div className="text-gray-500">Sense dades</div>;
 
   const totalOwed = debtors?.reduce((sum: number, d: any) => sum + d.totalAmount, 0) || 0;
+  const debtorCount = debtors?.length || 0;
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+
+      {/* Targetes de mètriques */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard label="Pendents revisió" value={data.pending} color="bg-yellow-50" />
-        <StatsCard label="Notificats" value={data.notified} color="bg-purple-50" />
-        <StatsCard label="Amb justificant" value={data.proofPending} color="bg-teal-50" />
-        <StatsCard label="Tancats / Confirmats" value={data.closed} color="bg-green-50" />
-        <StatsCard label="Esperant justificant" value={data.waitingProof || 0} color="bg-amber-50" />
-        <StatsCard label="Pagament declarat" value={data.paymentClaimed || 0} color="bg-rose-50" />
-        <StatsCard label="Error WhatsApp" value={data.whatsappError || 0} color="bg-red-50" />
-        <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`} color="bg-blue-50" />
+
+        {/* Bloc: Pendents d'acció (taronja/groc) */}
+        <StatsCard label="Pendents revisió" value={data.pending}
+          subtitle="Requereixen atenció manual"
+          icon="🔍" color="bg-orange-50" accent={ACCENT.orange} />
+        <StatsCard label="Pagament declarat" value={data.paymentClaimed || 0}
+          subtitle="Deutor diu que ha pagat"
+          icon="💬" color="bg-rose-50" accent={ACCENT.rose} />
+
+        {/* Bloc: En procés (blau/lila) */}
+        <StatsCard label="Notificats" value={data.notified}
+          subtitle="WhatsApp enviat"
+          icon="📤" color="bg-purple-50" accent={ACCENT.purple} />
+        <StatsCard label="Esperant justificant" value={data.waitingProof || 0}
+          subtitle="Agent espera resposta"
+          icon="⏳" color="bg-indigo-50" accent={ACCENT.indigo} />
+
+        {/* Bloc: Justificants (verd) */}
+        <StatsCard label="Justificant rebut" value={data.proofPending}
+          subtitle="Pendent de validar"
+          icon="📎" color="bg-emerald-50" accent={ACCENT.emerald} />
+        <StatsCard label="Tancats / Confirmats" value={data.closed}
+          subtitle="Resolts"
+          icon="✅" color="bg-green-50" accent={ACCENT.green} />
+
+        {/* Bloc: Problemes (vermell) */}
+        <StatsCard label="Error WhatsApp" value={data.whatsappError || 0}
+          subtitle="Requereix intervenció"
+          icon="⚠️" color="bg-red-50" accent={ACCENT.red} />
+
+        {/* Bloc: Resum financer */}
+        <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`}
+          subtitle={`${debtorCount} ${debtorCount === 1 ? "deutor" : "deutors"}`}
+          icon="💰" color="bg-blue-50" accent={ACCENT.blue} />
       </div>
 
+      {/* Deutors pendents */}
       <h2 className="text-xl font-bold mb-4">Deutors pendents</h2>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

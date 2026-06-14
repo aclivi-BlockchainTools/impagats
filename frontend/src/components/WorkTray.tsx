@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import StatusBadge from "./StatusBadge";
+import { formatAmount } from "../lib/api";
 
 const TRAY_FILTERS: { key: string; label: string; statuses: string[]; color: string }[] = [
   { key: "review", label: "Requereix revisió", statuses: ["REVISAR"], color: "bg-orange-50 border-orange-300" },
@@ -77,7 +78,7 @@ export default function WorkTray({ receipts }: Props) {
                   <td className="p-3">{r.client?.name || "-"}</td>
                   <td className="p-3">{r.invoice?.invoiceNumber || r.receiptReference || "-"}</td>
                   <td className="p-3">{r.servicePeriod || "-"}</td>
-                  <td className="p-3 text-right">{r.returnedAmount?.toString()} €</td>
+                  <td className="p-3 text-right">{formatAmount(r.returnedAmount)} €</td>
                   <td className="p-3 text-xs">{r.returnDate ? new Date(r.returnDate).toLocaleDateString("ca-ES") : "-"}</td>
                   <td className="p-3 text-xs max-w-[200px] truncate" title={r.returnReason}>{r.returnReason || "-"}</td>
                   <td className="p-3"><StatusBadge status={r.status} /></td>

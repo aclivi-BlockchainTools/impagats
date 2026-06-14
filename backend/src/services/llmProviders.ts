@@ -82,7 +82,7 @@ function createAnthropicAdapter(config: LLMProviderConfig): LLMProviderAdapter {
 }
 
 function createDeepSeekAdapter(config: LLMProviderConfig): LLMProviderAdapter {
-  const baseUrl = config.baseUrl || "http://localhost:4000";
+  const baseUrl = config.baseUrl || "https://api.deepseek.com/v1";
   return {
     async chat(messages) {
       const res = await fetch(`${baseUrl}/chat/completions`, {

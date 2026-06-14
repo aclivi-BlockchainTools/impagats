@@ -16,7 +16,18 @@ Per regularitzar la situació, fes una transferència al següent compte:
 
 ⚠️ IMPORTANT: Si us plau, envia'ns la foto del comprovant de pagament per aquest WhatsApp.
 
-Gràcies.
+---
+
+Te informamos que se ha devuelto el recibo del período {{service_period}} correspondiente a la factura {{invoice_number}} por un importe de {{amount}} €.
+
+Para regularizar la situación, haz una transferencia a la siguiente cuenta:
+
+🏦 {{company_iban}}
+📋 Factura: {{invoice_number}}
+
+⚠️ IMPORTANTE: Por favor, envíanos la foto del comprobante de pago por este WhatsApp.
+
+Gracias.
 {{company_name}}`;
 
 const DEFAULT_MULTIPLE_TEMPLATE = `Hola {{client_name}},
@@ -30,7 +41,18 @@ T'informem que s'han retornat els rebuts següents:
 
 ⚠️ IMPORTANT: Si us plau, envia'ns la foto dels comprovants de pagament per aquest WhatsApp.
 
-Gràcies.
+---
+
+Te informamos que se han devuelto los siguientes recibos:
+
+{{receipts_list}}
+
+🏦 {{company_iban}}
+💰 Total a pagar: {{total_amount}} €
+
+⚠️ IMPORTANTE: Por favor, envíanos la foto de los comprobantes de pago por este WhatsApp.
+
+Gracias.
 {{company_name}}`;
 
 export default function Settings() {

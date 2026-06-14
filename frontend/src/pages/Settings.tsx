@@ -100,49 +100,63 @@ export default function Settings() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Configuració</h1>
-      <div className="bg-white rounded-lg shadow p-6 max-w-2xl space-y-6">
-        <CompanySection settings={settings} onChange={set} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Columna esquerra */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <CompanySection settings={settings} onChange={set} />
+          </div>
 
-        <OpenWASection
-          settings={settings} onChange={set}
-          onTest={handleTestOpenWA} onRegisterWebhook={handleRegisterWebhook}
-          onCheckWebhooks={handleCheckWebhooks}
-          testing={testing} registering={registering}
-          openwaResult={openwaResult} webhookResult={webhookResult}
-        />
+          <div className="bg-white rounded-lg shadow p-6">
+            <OpenWASection
+              settings={settings} onChange={set}
+              onTest={handleTestOpenWA} onRegisterWebhook={handleRegisterWebhook}
+              onCheckWebhooks={handleCheckWebhooks}
+              testing={testing} registering={registering}
+              openwaResult={openwaResult} webhookResult={webhookResult}
+            />
+          </div>
 
-        <div>
-          <h2 className="font-semibold text-lg mb-3">Paraules clau per detectar devolucions</h2>
-          <input className="w-full border rounded px-3 py-2" value={settings.return_keywords || ""}
-            onChange={(e) => set("return_keywords", e.target.value)}
-            placeholder="devolucio, devolución, recibo devuelto, impagado, ..." />
-          <p className="text-xs text-gray-500 mt-1">Separades per comes</p>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="font-semibold text-lg mb-3">Paraules clau per detectar devolucions</h2>
+            <input className="w-full border rounded px-3 py-2" value={settings.return_keywords || ""}
+              onChange={(e) => set("return_keywords", e.target.value)}
+              placeholder="devolucio, devolución, recibo devuelto, impagado, ..." />
+            <p className="text-xs text-gray-500 mt-1">Separades per comes</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <AgentSection settings={settings} onChange={set} />
+          </div>
         </div>
 
-        <div>
-          <h2 className="font-semibold text-lg mb-3">Plantilla WhatsApp</h2>
-          <textarea className="w-full border rounded px-3 py-2 font-mono text-sm h-48"
-            value={settings.whatsapp_template || ""}
-            onChange={(e) => set("whatsapp_template", e.target.value)}
-            placeholder="Hola {{client_name}}, ..." />
-          <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{service_period}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+        {/* Columna dreta */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="font-semibold text-lg mb-3">Plantilla WhatsApp individual</h2>
+            <textarea className="w-full border rounded px-3 py-2 font-mono text-sm h-48"
+              value={settings.whatsapp_template || ""}
+              onChange={(e) => set("whatsapp_template", e.target.value)}
+              placeholder="Hola {{client_name}}, ..." />
+            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{service_period}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="font-semibold text-lg mb-3">Plantilla WhatsApp múltiple</h2>
+            <textarea className="w-full border rounded px-3 py-2 font-mono text-sm h-48"
+              value={settings.whatsapp_template_multiple || ""}
+              onChange={(e) => set("whatsapp_template_multiple", e.target.value)}
+              placeholder="Hola {{client_name}}, ..." />
+            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{receipts_list}}"}, {"{{total_amount}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <TemplatesSection settings={settings} onChange={set} />
+          </div>
         </div>
+      </div>
 
-        <div>
-          <h2 className="font-semibold text-lg mb-3">Plantilla WhatsApp múltiple</h2>
-          <textarea className="w-full border rounded px-3 py-2 font-mono text-sm h-48"
-            value={settings.whatsapp_template_multiple || ""}
-            onChange={(e) => set("whatsapp_template_multiple", e.target.value)}
-            placeholder="Hola {{client_name}}, ..." />
-          <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{receipts_list}}"}, {"{{total_amount}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
-        </div>
-
-        <AgentSection settings={settings} onChange={set} />
-
-        <div className="border-t pt-6">
-          <TemplatesSection settings={settings} onChange={set} />
-        </div>
-
+      <div className="mt-6">
         <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
           {saved ? "Desat!" : "Desar configuració"}
         </button>

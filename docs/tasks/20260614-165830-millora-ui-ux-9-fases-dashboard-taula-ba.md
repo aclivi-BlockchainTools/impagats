@@ -33,6 +33,8 @@ Completat: sí
 
 ## Notes
 
+- 2026-06-14 17:47: 2 commits a master: 6062b73 (UI/UX) + cde8c05 (CLAUDE.md). Build OK, 101 tests OK.
+- 2026-06-14 17:47: 2 commits push: 6062b73 (UI/UX) + cde8c05 (CLAUDE.md) → Implementat:no Verificat:no Completat:no
 - 2026-06-14 17:43: CLAUDE.md actualitzat amb aprenentatges de la sessió.
 - 2026-06-14 17:42: Commit 6062b73 i push a master. 12 fitxers, 578 insercions. → Implementat:no Verificat:no Completat:no
 - 2026-06-14 17:41: 9 fitxers frontend + 1 backend (uniqueClients). Frontend build OK. Backend 101 tests OK. Paginació afegida. Resum amb totals globals.

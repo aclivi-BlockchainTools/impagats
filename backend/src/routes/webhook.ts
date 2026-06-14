@@ -29,6 +29,7 @@ import {
 import { enqueueMessage, processOneMessage } from "../services/outboxService";
 import { recordStatusChange } from "../services/statusHistory";
 import { openwa } from "../connectors/OpenWAConnector";
+import { llmObserver } from "../services/llmObserverService";
 
 const router = Router();
 
@@ -673,6 +674,84 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
     }
   } else if (!shouldActuallyReply) {
     logger.info({ receiptId, intent: classification.intent }, "Resposta suprimida per anti-repetició");
+  }
+
+  // === 13. LLM Observer (async, no bloqueja la resposta) ===
+  if (llmObserver.isEnabled()) {
+    const capturedReceiptId = receiptId;
+    const capturedClientId = client.id;
+    const capturedMessageId = inboundMsg.id;
+    const capturedText = text || "";
+    const capturedIntent = classification.intent;
+    const capturedStatus = currentStatus;
+    const capturedHasProof = hasExistingProof || proofSaved;
+    const capturedHasReconciliation = hasReconciliationMatch;
+    const capturedLastMessages = lastMessages;
+    const capturedReceiptAmount = openReceipt.returnedAmount.toString();
+    const capturedServicePeriod = openReceipt.servicePeriod;
+    const capturedClientName = clientName;
+    const capturedMedia = !!media;
+    const capturedProofSaved = proofSaved;
+    const capturedMediaType = mediaType;
+
+    setImmediate(async () => {
+      // N1: Classificació alternativa si l'actual és dubtosa
+      const lowConfidenceIntents = ["unknown", "payment_claim_without_proof"];
+      const isAudioMedia = capturedMediaType?.startsWith("audio/") || capturedMediaType === "audio/ogg; codecs=opus";
+      const hasUnprocessedMedia = capturedMedia && !capturedProofSaved && !isAudioMedia;
+
+      if (lowConfidenceIntents.includes(capturedIntent) ||
+          hasUnprocessedMedia ||
+          (capturedIntent === "question_about_debt" && !capturedClientName)) {
+
+        await llmObserver.classifyMessage({
+          text: capturedText,
+          currentIntent: capturedIntent,
+          currentStatus: capturedStatus,
+          pendingAmount: capturedReceiptAmount,
+          pendingPeriods: capturedServicePeriod ? [capturedServicePeriod] : undefined,
+          hasProof: capturedHasProof,
+          hasReconciliation: capturedHasReconciliation,
+          lastMessages: capturedLastMessages,
+          probableLanguage: "unknown",
+          receiptId: capturedReceiptId,
+          clientId: capturedClientId,
+          messageId: capturedMessageId,
+        });
+      }
+
+      // N2: Revisió de conversa cada 3 missatges
+      const messageCount = await prisma.message.count({
+        where: { receiptId: capturedReceiptId },
+      });
+
+      if (messageCount > 0 && messageCount % 3 === 0) {
+        const allMessages = await prisma.message.findMany({
+          where: { receiptId: capturedReceiptId },
+          orderBy: { sentAt: "asc" },
+          select: { direction: true, content: true, sentAt: true },
+        });
+
+        const firstMsg = allMessages[0];
+        const lastMsg = allMessages[allMessages.length - 1];
+        const durationDays = firstMsg && lastMsg
+          ? Math.ceil((lastMsg.sentAt.getTime() - firstMsg.sentAt.getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
+
+        await llmObserver.reviewConversation({
+          receiptId: capturedReceiptId,
+          clientId: capturedClientId,
+          messages: allMessages,
+          pendingAmount: capturedReceiptAmount,
+          pendingPeriods: capturedServicePeriod ? [capturedServicePeriod] : undefined,
+          hasProof: capturedHasProof,
+          hasReconciliation: capturedHasReconciliation,
+          status: capturedStatus,
+          messageCount,
+          durationDays,
+        });
+      }
+    });
   }
 
   // === 12. Resposta OK (sempre, perquè OpenWA no reenvii) ===

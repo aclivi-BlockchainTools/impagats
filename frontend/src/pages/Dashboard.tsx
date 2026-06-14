@@ -43,16 +43,22 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {debtors?.map((d: any) => (
-              <tr key={d.clientId || d.clientName} className="border-t hover:bg-gray-50">
-                <td className="p-3 font-medium">{d.clientName}</td>
+            {debtors?.map((d: any) => {
+              const isRepeat = d.periodCount > 1;
+              return (
+              <tr key={d.clientId || d.clientName} className={`border-t hover:bg-gray-50 ${isRepeat ? "bg-amber-50" : ""}`}>
+                <td className={`p-3 font-medium ${isRepeat ? "text-amber-900" : ""}`}>
+                  {isRepeat && <span className="mr-1.5 text-amber-500" title="Múltiples períodes">🔁</span>}
+                  {d.clientName}
+                </td>
                 <td className="p-3 text-center">{d.receiptCount}</td>
-                <td className="p-3 text-center">{d.periodCount}</td>
+                <td className={`p-3 text-center font-semibold ${isRepeat ? "text-amber-700" : ""}`}>{d.periodCount}</td>
                 <td className="p-3 text-xs">{d.periods?.join(", ")}</td>
                 <td className="p-3">{d.oldestDate ? new Date(d.oldestDate).toLocaleDateString("ca-ES") : "-"}</td>
                 <td className="p-3 text-right font-semibold">{d.totalAmount.toFixed(2)} €</td>
               </tr>
-            ))}
+              );
+            })}
             {(!debtors || debtors.length === 0) && (
               <tr><td colSpan={6} className="p-3 text-center text-gray-500">Cap deutor pendent</td></tr>
             )}

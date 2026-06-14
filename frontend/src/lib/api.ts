@@ -61,12 +61,24 @@ export const api = {
   importCsv: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return fetch(BASE + "/bank-movements", { method: "POST", body: formData }).then((r) => r.json());
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return fetch(BASE + "/bank-movements", { method: "POST", body: formData, headers }).then((r) => {
+      if (!r.ok) return r.json().then((e) => { throw new Error(e.error || `HTTP ${r.status}`); });
+      return r.json();
+    });
   },
   importSepaXml: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return fetch(BASE + "/bank-movements/xml", { method: "POST", body: formData }).then((r) => r.json());
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return fetch(BASE + "/bank-movements/xml", { method: "POST", body: formData, headers }).then((r) => {
+      if (!r.ok) return r.json().then((e) => { throw new Error(e.error || `HTTP ${r.status}`); });
+      return r.json();
+    });
   },
 
   // Returned receipts

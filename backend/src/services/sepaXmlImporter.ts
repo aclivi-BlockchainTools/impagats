@@ -11,6 +11,7 @@ interface SepaTransaction {
   debtorName: string;
   debtorIban: string;
   invoiceNumber: string | null;
+  invoiceDate?: Date;
   rejectionCode: string;
   endToEndId: string;
   mandateId: string;
@@ -81,9 +82,14 @@ function rejectionLabel(code: string): string {
   return meaning ? `${code} - ${meaning}` : code;
 }
 
-function computeServicePeriod(date: Date): string {
+function computeServicePeriod(date: Date, invoiceDate?: Date): string {
   const monthNames = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
     "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
+  // Si tenim data de factura, usar-la per saber el mes real del servei
+  if (invoiceDate) {
+    return `${monthNames[invoiceDate.getMonth()]} ${invoiceDate.getFullYear()}`;
+  }
+  // Sense data de factura: el rebut s'emet el mes següent al servei → mes anterior
   const m = date.getMonth();
   const y = date.getFullYear();
   const sm = m === 0 ? 12 : m;
@@ -152,9 +158,12 @@ function parseTransaction(txInfo: any): SepaTransaction | null {
     valorDate = `${d}/${m}/${y}`;
   }
 
+  const parsedInvoiceDate = invoiceDate ? parseDate(invoiceDate) : undefined;
+
   return {
     amount,
     collectionDate,
+    invoiceDate: parsedInvoiceDate || undefined,
     debtorName: debtorName.trim(),
     debtorIban,
     invoiceNumber,
@@ -243,9 +252,28 @@ export async function importSepaXml(xmlContent: string, batchId?: number): Promi
       const concept = `DEV.REBUT ${tx.debtorName}`;
       const importHash = computeImportHash(tx.collectionDate, tx.amount, concept, tx.endToEndId, tx.debtorIban);
 
-      const existing = await prisma.bankMovement.findFirst({
+      let existing = await prisma.bankMovement.findFirst({
         where: { importHash },
       });
+
+      // Fallback: comprovar per data+import+referencia (per evitar duplicats amb imports antics sense hash)
+      if (!existing) {
+        existing = await prisma.bankMovement.findFirst({
+          where: {
+            concept,
+            date: tx.collectionDate,
+            amount: -tx.amount,
+            reference: tx.endToEndId,
+          },
+        });
+        if (existing) {
+          // Actualitzar el hash per futures comprovacions
+          await prisma.bankMovement.update({
+            where: { id: existing.id },
+            data: { importHash },
+          });
+        }
+      }
 
       if (existing) {
         skipped++;
@@ -268,13 +296,13 @@ export async function importSepaXml(xmlContent: string, batchId?: number): Promi
       });
       imported++;
 
-      const servicePeriod = computeServicePeriod(tx.collectionDate);
+      const servicePeriod = computeServicePeriod(tx.collectionDate, tx.invoiceDate);
       let notes = servicePeriod ? `Període: ${servicePeriod}` : "";
       if ((tx.rawData as any).dateSource && (tx.rawData as any).dateSource !== "ReqdColltnDt") {
         notes = notes ? `${notes} ⚠️ Data estimada (${(tx.rawData as any).dateSource})` : `⚠️ Data estimada (${(tx.rawData as any).dateSource})`;
       }
 
-      await prisma.returnedReceipt.create({
+      const receipt = await prisma.returnedReceipt.create({
         data: {
           bankMovementId: movement.id,
           returnedAmount: tx.amount,
@@ -320,16 +348,18 @@ export async function importSepaXml(xmlContent: string, batchId?: number): Promi
         for (const cl of clients) {
           const a = extractedName, b = cl.name.toLowerCase();
           if (a === b) { bestScore = 1; bestClient = cl; break; }
-          const partsA = a.split(/\s+/), partsB = b.split(/\s+/);
-          const allInB = partsB.every((pb: string) => partsA.some((pa: string) => pa.includes(pb) || pb.includes(pa)));
-          const allInA = partsA.every((pa: string) => partsB.some((pb: string) => pb.includes(pa) || pa.includes(pb)));
+          const partsA = a.split(/\s+/).filter((p: string) => p.length >= 3);
+          const partsB = b.split(/\s+/).filter((p: string) => p.length >= 3);
+          if (partsA.length === 0 || partsB.length === 0) continue;
+          // Whole-word matching (no substring — evita falsos positius amb inicials)
+          const allInB = partsB.every((pb: string) => partsA.some((pa: string) => pa === pb));
+          const allInA = partsA.every((pa: string) => partsB.some((pb: string) => pa === pb));
           if (allInB && allInA && 0.9 > bestScore) { bestScore = 0.9; bestClient = cl; }
           else if ((allInB || allInA) && 0.7 > bestScore) { bestScore = 0.7; bestClient = cl; }
           let wordMatched = 0;
           const total = Math.max(partsA.length, partsB.length);
           for (const pa of partsA) {
-            if (pa.length < 3) continue;
-            if (partsB.some((pb: string) => pb.includes(pa) || pa.includes(pb))) wordMatched++;
+            if (partsB.some((pb: string) => pa === pb)) wordMatched++;
           }
           const wordScore = wordMatched > 0 ? (wordMatched / total) * 0.8 : 0;
           if (wordScore > bestScore) { bestScore = wordScore; bestClient = cl; }
@@ -350,7 +380,7 @@ export async function importSepaXml(xmlContent: string, batchId?: number): Promi
           // Crear MatchCandidate per revisió manual
           await prisma.matchCandidate.create({
             data: {
-              receiptId: movement.id,
+              receiptId: receipt.id,
               bankMovementId: movement.id,
               clientId: bestClient.id,
               score: bestScore,

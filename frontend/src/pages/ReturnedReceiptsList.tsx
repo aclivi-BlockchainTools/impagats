@@ -5,6 +5,33 @@ import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 import { formatAmount } from "../lib/api";
 
+function formatDataEmissio(valor: string | undefined): string {
+  if (!valor) return "-";
+  // Si ja està en format DD/MM/YY o DD/MM/YYYY, retornar tal qual
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(valor)) return valor;
+  // Si és ISO (YYYY-MM-DD), convertir a DD/MM/YYYY
+  const isoMatch = valor.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1].slice(2)}`;
+  return valor;
+}
+
+// Mapa de mesos en català a número
+const CAT_MONTHS: Record<string, number> = {
+  "gener": 1, "febrer": 2, "març": 3, "abril": 4,
+  "maig": 5, "juny": 6, "juliol": 7, "agost": 8,
+  "setembre": 9, "octubre": 10, "novembre": 11, "desembre": 12,
+};
+
+function periodToSort(period: string | null | undefined): number {
+  if (!period) return 0;
+  // Format: "Mes Any" (ex: "Juny 2026")
+  const parts = period.trim().split(/\s+/);
+  if (parts.length < 2) return 0;
+  const month = CAT_MONTHS[parts[0].toLowerCase()] || 0;
+  const year = parseInt(parts[1]) || 0;
+  return year * 100 + month; // 202606, 202605, etc.
+}
+
 export default function ReturnedReceiptsList() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -36,7 +63,7 @@ export default function ReturnedReceiptsList() {
         case "client": va = (a.client?.name || "").toLowerCase(); vb = (b.client?.name || "").toLowerCase(); break;
         case "reference": va = a.receiptReference || ""; vb = b.receiptReference || ""; break;
         case "returnReason": va = a.returnReason || ""; vb = b.returnReason || ""; break;
-        case "servicePeriod": va = a.servicePeriod || ""; vb = b.servicePeriod || ""; break;
+        case "servicePeriod": va = periodToSort(a.servicePeriod); vb = periodToSort(b.servicePeriod); break;
         case "amount": va = a.returnedAmount; vb = b.returnedAmount; break;
         case "status": va = a.status; vb = b.status; break;
         default: return 0;
@@ -187,11 +214,11 @@ export default function ReturnedReceiptsList() {
               <tr key={r.id} className="border-t">
                 <td className="p-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="p-3">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
-                <td className="p-3">{r.client?.name || "-"}</td>
+                <td className="p-3 max-w-[160px] truncate" title={r.client?.name}>{r.client?.name || "-"}</td>
                 <td className="p-3">{r.receiptReference || "-"}</td>
-                <td className="p-3 text-xs">{r.returnReason || "-"}</td>
+                <td className="p-3 text-xs max-w-[160px] truncate" title={r.returnReason}>{r.returnReason || "-"}</td>
                 <td className="p-3 text-sm">{r.servicePeriod || "-"}</td>
-                <td className="p-3 text-sm">{r.bankMovement?.rawData?.Valor || "-"}</td>
+                <td className="p-3 text-sm">{formatDataEmissio(r.bankMovement?.rawData?.Valor)}</td>
                 <td className="p-3 text-right">{formatAmount(r.returnedAmount)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>
                 <td className="p-3">

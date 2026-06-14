@@ -1,5 +1,6 @@
 // Plantilles fixes de resposta WhatsApp
 // Totes les respostes al client han de sortir d'aquí, sense redacció lliure.
+// Dissenyades per ser comunicatives i útils, mantenint el canal tancat i segur.
 
 export interface TemplateVars {
   client_name?: string;
@@ -49,52 +50,101 @@ Aquest canal és automàtic i només serveix per rebre justificants. Per qualsev
 
 Gràcies.`;
 
-// --- Resposta quan rep justificant (proof_media) ---
-export const TEMPLATE_PROOF_RECEIVED = `Gràcies. Hem rebut el justificant.
+// --- greeting_or_identity: Salutació o "qui ets" ---
+export const TEMPLATE_GREETING_OR_IDENTITY = `Hola. Soc l'assistent automàtic de {{company_name}} per gestionar justificants de pagament relacionats amb incidències de cobrament.
+
+Si ja has fet l'abonament, pots enviar aquí el justificant en foto, PDF o document.
+
+Per qualsevol dubte sobre imports, factures o altres temes, contacta amb nosaltres per les vies habituals.`;
+
+// --- proof_media: Justificant guardat correctament (primer) ---
+export const TEMPLATE_PROOF_RECEIVED = `Gràcies. Hem rebut el justificant correctament.
 
 El nostre equip el revisarà i actualitzarà l'estat del rebut si tot és correcte.`;
 
-// --- Resposta quan diu que ha pagat però no envia justificant (payment_claim_without_proof) ---
-export const TEMPLATE_PAYMENT_CLAIM_NO_PROOF = `Gràcies per avisar.
-
-Per poder revisar-ho, envia si us plau el justificant bancari en imatge, PDF o document per aquest mateix WhatsApp.`;
-
-// --- Resposta per preguntes, dubtes o queixes (question / complaint / unknown) ---
-export const TEMPLATE_REDIRECT = `Aquest canal és automàtic i només pot gestionar l'enviament de justificants de pagament.
-
-Per qualsevol dubte sobre factures, imports o serveis, contacta amb nosaltres per les vies habituals.
+// --- additional_proof_received: Segon o posterior justificant ---
+export const TEMPLATE_ADDITIONAL_PROOF_RECEIVED = `Hem rebut també aquest document i l'afegirem a la revisió del cas.
 
 Gràcies.`;
 
-// --- Resposta per àudio ---
+// --- pending_review_status: PENDENT_REVISIO + pregunta estat ---
+export const TEMPLATE_PENDING_REVIEW_STATUS = `Hem rebut el justificant i queda pendent de revisió.
+
+Si tot és correcte, actualitzarem l'estat del rebut. Si necessitem alguna cosa més, contactarem amb tu per les vies habituals.
+
+Gràcies.`;
+
+// --- proof_media: Error guardant el fitxer ---
+export const TEMPLATE_PROOF_SAVE_ERROR = `Gràcies, hem rebut una imatge o document, però no l'hem pogut guardar correctament.
+
+Si us plau, torna a enviar el justificant com a foto, PDF o document. Quan el rebem correctament, quedarà pendent de revisió.`;
+
+// --- payment_claim_without_proof: Client diu que ha pagat sense fitxer ---
+export const TEMPLATE_PAYMENT_CLAIM_NO_PROOF = `Perfecte, gràcies per avisar.
+
+Per poder revisar el pagament, envia si us plau el justificant bancari en foto, PDF o document per aquest mateix WhatsApp.`;
+
+// --- payment_promise: Client diu que pagarà més tard ---
+export const TEMPLATE_PAYMENT_PROMISE = `D'acord, gràcies per avisar.
+
+Quan hagis fet l'abonament, envia si us plau el justificant bancari per aquest mateix WhatsApp.`;
+
+// --- question_about_debt: Preguntes sobre imports, factures o deute ---
+export const TEMPLATE_QUESTION_ABOUT_DEBT = `Entenc la consulta.
+
+Aquest canal només pot gestionar l'enviament de justificants. Per revisar imports, factures o qualsevol dubte sobre el rebut, contacta amb nosaltres per les vies habituals.
+
+Gràcies.`;
+
+// --- complaint_or_problem: Queixa, problema, impossibilitat de pagar ---
+export const TEMPLATE_COMPLAINT_OR_PROBLEM = `Entenc.
+
+Aquest canal automàtic no pot gestionar incidències, consultes o acords de pagament.
+
+Per revisar el teu cas, contacta amb nosaltres per les vies habituals.
+
+Gràcies.`;
+
+// --- audio: Client envia àudio ---
 export const TEMPLATE_AUDIO = `Aquest canal automàtic no pot gestionar àudios.
 
-Si ja has fet l'abonament, envia si us plau el justificant bancari en imatge, PDF o document.
+Si ja has fet l'abonament, envia si us plau el justificant bancari en foto, PDF o document.
 
 Per qualsevol dubte, contacta amb nosaltres per les vies habituals.`;
 
-// --- Resposta per número equivocat (wrong_person) ---
+// --- wrong_person: Número equivocat ---
 export const TEMPLATE_WRONG_PERSON = `Gràcies per avisar.
 
 Aquest canal és automàtic i no pot revisar aquesta incidència. Si cal, contacta amb nosaltres per les vies habituals.`;
+
+// --- unknown: Missatge no classificat ---
+export const TEMPLATE_UNKNOWN = `Gràcies pel missatge.
+
+Aquest canal només pot gestionar justificants de pagament. Si ja has fet l'abonament, envia el justificant en foto, PDF o document.
+
+Per qualsevol altre tema, contacta amb nosaltres per les vies habituals.`;
 
 // --- Resposta general d'error ---
 export const TEMPLATE_TECHNICAL_ERROR = `Hem tingut un problema tècnic. Si us plau, contacta amb nosaltres per les vies de comunicació habituals. Disculpa les molèsties.`;
 
 // --- Mapa de plantilles per intent ---
 export const REPLY_TEMPLATES: Record<string, string> = {
+  greeting_or_identity: TEMPLATE_GREETING_OR_IDENTITY,
   proof_media: TEMPLATE_PROOF_RECEIVED,
+  additional_proof_received: TEMPLATE_ADDITIONAL_PROOF_RECEIVED,
+  pending_review_status: TEMPLATE_PENDING_REVIEW_STATUS,
   payment_claim_without_proof: TEMPLATE_PAYMENT_CLAIM_NO_PROOF,
-  question: TEMPLATE_REDIRECT,
-  complaint: TEMPLATE_REDIRECT,
+  payment_promise: TEMPLATE_PAYMENT_PROMISE,
+  question_about_debt: TEMPLATE_QUESTION_ABOUT_DEBT,
+  complaint_or_problem: TEMPLATE_COMPLAINT_OR_PROBLEM,
   wrong_person: TEMPLATE_WRONG_PERSON,
   audio: TEMPLATE_AUDIO,
-  unknown: TEMPLATE_REDIRECT,
+  unknown: TEMPLATE_UNKNOWN,
 };
 
 // --- Funció helper ---
 export function getReplyTemplate(intent: string): string {
-  return REPLY_TEMPLATES[intent] || TEMPLATE_REDIRECT;
+  return REPLY_TEMPLATES[intent] || TEMPLATE_UNKNOWN;
 }
 
 export function renderInitialNotification(vars: TemplateVars): string {
@@ -107,6 +157,5 @@ export function renderMultipleNotification(vars: TemplateVars): string {
 
 export function renderReply(intent: string, _vars?: TemplateVars): string {
   const template = getReplyTemplate(intent);
-  // Les plantilles de resposta no tenen variables (són fixes)
   return template;
 }

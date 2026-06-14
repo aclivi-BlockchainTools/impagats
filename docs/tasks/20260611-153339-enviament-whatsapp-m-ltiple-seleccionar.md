@@ -60,10 +60,11 @@ Enviament WhatsApp múltiple: seleccionar diversos impagats del mateix client i 
 
 Implementat: sí
 Verificat: sí
-Completat: no
+Completat: sí
 
 ## Notes
 
+- 2026-06-12 14:49: Commit 9fa8865 i push a master. 46 fitxers, +3762/-625 línies. CLAUDE.md actualitzat amb OpenWA webhook, Decimal, plantilles, outbox, DELETE cascada, fast-xml-parser, auth, tests. → Implementat:no Verificat:no Completat:no
 - 2026-06-12 11:02: Safata admin: WorkTray component amb 8 filtres per estat integrat al Dashboard. Logs: pino a csvImporter (duplicats + resum) i returnDetector (detecció + resum). Tests: sepaXmlImporter amb fast-xml-parser (12 tests), importDedup (9 tests), proofService (13 tests). Bug arreglat: getNested no parsejava números (fast-xml-parser converteix a number). → Implementat:sí Verificat:no Completat:no
 - 2026-06-12 10:45: Continuació: Afegits 25 tests (proofService 13 + importDedup 9). Arreglat bug validació MIME a proofService (era massa permissiva). Frontend ReceiptActions, ReturnedReceiptsList i ReturnedReceiptDetail actualitzats amb tots els estats nous i case notes/historial. → Implementat:sí Verificat:no Completat:no
 - 2026-06-12 10:43: ReceiptActions: dropdown amb 12 estats, labels actualitzats, isAgentActive amb ESPERANT_JUSTIFICANT/PAGAMENT_DECLARAT. ReturnedReceiptsList: filter amb 12 estats, agent column amb nous estats, bulk-send actualitzat. ReturnedReceiptDetail: case notes + status history integrats. → Implementat:sí Verificat:no Completat:no

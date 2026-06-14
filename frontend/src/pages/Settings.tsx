@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import CompanySection from "../components/CompanySection";
 import OpenWASection from "../components/OpenWASection";
 import AgentSection from "../components/AgentSection";
+import TemplatesSection from "../components/TemplatesSection";
 
 const DEFAULT_TEMPLATE = `Hola {{client_name}},
 
@@ -137,6 +138,10 @@ export default function Settings() {
         </div>
 
         <AgentSection settings={settings} onChange={set} />
+
+        <div className="border-t pt-6">
+          <TemplatesSection settings={settings} onChange={set} />
+        </div>
 
         <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
           {saved ? "Desat!" : "Desar configuració"}

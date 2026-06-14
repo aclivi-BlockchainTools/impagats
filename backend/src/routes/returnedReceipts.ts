@@ -226,8 +226,10 @@ router.post("/:id/simulate-agent", asyncHandler(async (req: Request, res: Respon
   res.json({
     intent: classification.intent,
     replyText,
+    shouldMarkPendentRevisio: classification.shouldMarkPendentRevisio,
     shouldMarkJustificantRebut: classification.shouldMarkJustificantRebut,
     shouldMarkPagamentDeclarat: classification.shouldMarkPagamentDeclarat,
+    shouldMarkEsperantJustificant: classification.shouldMarkEsperantJustificant,
     shouldMarkRevisar: classification.shouldMarkRevisar,
   });
 }));
@@ -295,11 +297,16 @@ router.post("/:id/execute-agent", asyncHandler(async (req: Request, res: Respons
 
   // Update receipt status
   const updateData: any = {};
-  if (classification.shouldMarkJustificantRebut) {
+  if (classification.shouldMarkPendentRevisio) {
+    updateData.status = "PENDENT_REVISIO";
+    updateData.proofReceivedAt = new Date();
+  } else if (classification.shouldMarkJustificantRebut) {
     updateData.status = "JUSTIFICANT_REBUT";
     updateData.proofReceivedAt = new Date();
   } else if (classification.shouldMarkPagamentDeclarat) {
     updateData.status = "PAGAMENT_DECLARAT";
+  } else if (classification.shouldMarkEsperantJustificant) {
+    updateData.status = "ESPERANT_JUSTIFICANT";
   } else if (classification.shouldMarkRevisar) {
     updateData.status = "REVISAR";
   }
@@ -401,20 +408,32 @@ router.post("/:id/reply", asyncHandler(async (req: Request, res: Response) => {
     message: v.data.text.trim(),
   });
 
+  // Enviar immediatament (no esperar el worker)
+  let sent = false;
+  if (outboxId) {
+    const result = await processOneMessage(outboxId);
+    sent = result.success;
+  }
+
   // Guardar al historial de missatges
   const message = await prisma.message.create({
     data: {
       receiptId: receipt.id,
       direction: "OUTBOUND",
       content: v.data.text.trim(),
-      status: outboxId ? "queued" : "failed",
+      status: sent ? "sent" : "failed",
     },
   });
 
   await auditLog("MANUAL_REPLY", "ReturnedReceipt", receipt.id, {
     text: v.data.text.trim(),
     outboxId,
+    sent,
   });
+
+  if (!sent) {
+    return res.status(500).json({ error: "No s'ha pogut enviar el missatge", outboxId });
+  }
 
   res.json({ success: true, message, outboxId });
 }));

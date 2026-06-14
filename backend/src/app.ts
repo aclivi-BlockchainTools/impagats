@@ -14,12 +14,23 @@ import healthRouter from "./routes/health";
 import outboxRouter from "./routes/outbox";
 import authRouter from "./routes/auth";
 import caseNotesRouter from "./routes/caseNotes";
+import proofsRouter from "./routes/proofs";
 
 const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === "production"
     ? process.env.CORS_ORIGIN || "http://localhost:8080"
-    : "http://localhost:5174",
+    : (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
+        // En dev, permetre localhost i xarxa local
+        if (!origin) { callback(null, true); return; }
+        if (origin.startsWith("http://localhost")) { callback(null, true); return; }
+        if (origin.startsWith("http://192.168.")) { callback(null, true); return; }
+        if (origin.startsWith("http://10.")) { callback(null, true); return; }
+        if (origin.startsWith("http://172.")) { callback(null, true); return; }
+        const allowed = process.env.CORS_ORIGIN;
+        if (allowed && origin === allowed) { callback(null, true); return; }
+        callback(null, false);
+      },
 }));
 app.use(express.json({ limit: "1mb" }));
 
@@ -38,6 +49,7 @@ app.use("/api/settings", authMiddleware, settingsRouter);
 app.use("/api/dashboard", authMiddleware, dashboardRouter);
 app.use("/api/outbox", authMiddleware, outboxRouter);
 app.use("/api/case-notes", authMiddleware, caseNotesRouter);
+app.use("/api/proofs", authMiddleware, proofsRouter);
 app.use(errorHandler);
 
 export default app;

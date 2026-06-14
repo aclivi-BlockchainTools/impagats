@@ -41,7 +41,7 @@ export default function BankImport() {
           <p className="text-sm text-gray-600">
             Fitxer CSV amb columnes de concepte, import, data i referència. Delimitador: punt i coma (;).
           </p>
-          <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} className="block" />
+          <input type="file" accept=".csv,text/csv,application/vnd.ms-excel" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} className="block w-full text-sm" />
           <button onClick={handleImportCsv} disabled={!csvFile || loading}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 text-sm">
             {loading ? "Important..." : "Importar CSV"}
@@ -54,7 +54,7 @@ export default function BankImport() {
           <p className="text-sm text-gray-600">
             Fitxer XML de devolucions SEPA (Customer Payment Status Report). Extreu nom del deutor, IBAN, import, data i núm. factura.
           </p>
-          <input type="file" accept=".xml" onChange={(e) => setXmlFile(e.target.files?.[0] || null)} className="block" />
+          <input type="file" accept=".xml,text/xml,application/xml" onChange={(e) => setXmlFile(e.target.files?.[0] || null)} className="block w-full text-sm" />
           <button onClick={handleImportXml} disabled={!xmlFile || loading}
             className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50 text-sm">
             {loading ? "Important..." : "Importar XML SEPA"}

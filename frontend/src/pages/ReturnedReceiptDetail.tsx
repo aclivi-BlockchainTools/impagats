@@ -6,6 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 import ReceiptInfo from "../components/ReceiptInfo";
 import ReceiptActions from "../components/ReceiptActions";
 import ConversationView from "../components/ConversationView";
+import ProofViewer from "../components/ProofViewer";
 
 export default function ReturnedReceiptDetail() {
   const { id } = useParams();
@@ -43,19 +44,24 @@ export default function ReturnedReceiptDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ReceiptInfo receipt={receipt} clients={clients || []} invoices={invoices || []} onReload={reload} />
-        <div>
-          <ReceiptActions receipt={receipt} onReload={reload} />
-          <div className="mt-4">
-            <ConversationView messages={receipt.messages} />
-          </div>
-        </div>
+        <ReceiptActions receipt={receipt} onReload={reload} />
       </div>
 
-      {/* Case Notes + Status History */}
+      {/* Conversa WhatsApp — amplada completa */}
+      <div className="mt-6">
+        <ConversationView messages={receipt.messages} />
+      </div>
+
+      {/* Justificants */}
+      <div className="mt-6">
+        <ProofViewer proofs={receipt.proofs} />
+      </div>
+
+      {/* Case Notes + Status History — amb scroll */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="font-semibold text-lg mb-4">Notes internes</h2>
-          <div className="flex gap-2 mb-4">
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col">
+          <h2 className="font-semibold text-lg mb-4 flex-shrink-0">Notes internes</h2>
+          <div className="flex gap-2 mb-4 flex-shrink-0">
             <input
               className="flex-1 border rounded px-3 py-2 text-sm"
               placeholder="Afegir nota interna..."
@@ -71,51 +77,55 @@ export default function ReturnedReceiptDetail() {
               {addingNote ? "..." : "Afegir"}
             </button>
           </div>
-          {notes && notes.length > 0 ? (
-            <ul className="space-y-2">
-              {notes.map((n: any) => (
-                <li key={n.id} className="border-l-2 border-blue-300 pl-3 py-1">
-                  <div className="text-sm whitespace-pre-wrap">{n.body}</div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {n.author} — {new Date(n.createdAt).toLocaleString("ca-ES")}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-400">Cap nota interna</p>
-          )}
+          <div className="overflow-y-auto" style={{ maxHeight: "250px" }}>
+            {notes && notes.length > 0 ? (
+              <ul className="space-y-2">
+                {notes.map((n: any) => (
+                  <li key={n.id} className="border-l-2 border-blue-300 pl-3 py-1">
+                    <div className="text-sm whitespace-pre-wrap">{n.body}</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {n.author} — {new Date(n.createdAt).toLocaleString("ca-ES")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-400">Cap nota interna</p>
+            )}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="font-semibold text-lg mb-4">Historial d'estats</h2>
-          {history && history.length > 0 ? (
-            <ul className="space-y-2">
-              {history.map((h: any) => (
-                <li key={h.id} className="flex items-start gap-3 text-sm">
-                  <div className="flex flex-col items-center">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full mt-2" />
-                    {history.indexOf(h) < history.length - 1 && <span className="w-px h-full bg-gray-200" />}
-                  </div>
-                  <div>
-                    <div>
-                      {h.fromStatus ? (
-                        <span className="text-gray-500">{h.fromStatus} → </span>
-                      ) : (
-                        <span className="text-gray-400">(inici) → </span>
-                      )}
-                      <span className="font-medium">{h.toStatus}</span>
-                      <span className="text-xs text-gray-400 ml-2">{h.actorType}</span>
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col">
+          <h2 className="font-semibold text-lg mb-4 flex-shrink-0">Historial d'estats</h2>
+          <div className="overflow-y-auto" style={{ maxHeight: "250px" }}>
+            {history && history.length > 0 ? (
+              <ul className="space-y-2 pr-1">
+                {history.map((h: any, idx: number) => (
+                  <li key={h.id} className="flex items-start gap-3 text-sm">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full mt-1.5" />
+                      {idx < history.length - 1 && <span className="w-px flex-1 bg-gray-200 min-h-[20px]" />}
                     </div>
-                    {h.reason && <div className="text-xs text-gray-400">{h.reason}</div>}
-                    <div className="text-xs text-gray-300">{new Date(h.createdAt).toLocaleString("ca-ES")}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-400">Cap canvi d'estat registrat</p>
-          )}
+                    <div className="min-w-0">
+                      <div>
+                        {h.fromStatus ? (
+                          <span className="text-gray-500">{h.fromStatus} → </span>
+                        ) : (
+                          <span className="text-gray-400">(inici) → </span>
+                        )}
+                        <span className="font-medium">{h.toStatus}</span>
+                        <span className="text-xs text-gray-400 ml-2">{h.actorType}</span>
+                      </div>
+                      {h.reason && <div className="text-xs text-gray-400 truncate">{h.reason}</div>}
+                      <div className="text-xs text-gray-300">{new Date(h.createdAt).toLocaleString("ca-ES")}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-400">Cap canvi d'estat registrat</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

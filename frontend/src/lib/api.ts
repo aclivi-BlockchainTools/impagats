@@ -153,4 +153,32 @@ export const api = {
   getCaseNotes: (receiptId: number) => request<any[]>(`/case-notes/${receiptId}/notes`),
   addCaseNote: (receiptId: number, body: string) => request<any>(`/case-notes/${receiptId}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
   getStatusHistory: (receiptId: number) => request<any[]>(`/case-notes/${receiptId}/history`),
+
+  // Observer
+  getObserverSuggestions: (params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<any>(`/observer/suggestions${qs}`);
+  },
+  getObserverSuggestion: (id: number) => request<any>(`/observer/suggestions/${id}`),
+  updateObserverSuggestion: (id: number, action: string) =>
+    request<any>(`/observer/suggestions/${id}`, { method: "PUT", body: JSON.stringify({ action }) }),
+  applyObserverSuggestion: (id: number) =>
+    request<any>(`/observer/suggestions/${id}/apply`, { method: "POST" }),
+  getObserverSummary: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return request<any>(`/observer/summary${qs ? "?" + qs : ""}`);
+  },
+  runObserverAudit: (from?: string, to?: string) =>
+    request<any>("/observer/audit", { method: "POST", body: JSON.stringify({ from, to }) }),
+  getObserverKeywords: () => request<any[]>("/observer/keywords"),
+  createObserverKeyword: (data: { intent?: string; pattern: string; type?: string; language?: string; priority?: number }) =>
+    request<any>("/observer/keywords", { method: "POST", body: JSON.stringify(data) }),
+  updateObserverKeyword: (id: number, data: any) =>
+    request<any>(`/observer/keywords/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteObserverKeyword: (id: number) =>
+    request<void>(`/observer/keywords/${id}`, { method: "DELETE" }),
+  testObserver: () => request<any>("/observer/test", { method: "POST" }),
 };

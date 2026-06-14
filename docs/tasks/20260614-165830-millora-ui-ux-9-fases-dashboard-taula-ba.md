@@ -33,6 +33,8 @@ Completat: sí
 
 ## Notes
 
+- 2026-06-14 18:05: Commit fed8e3b: layout 2 col a detall i settings. Push OK.
+- 2026-06-14 18:05: Commit fed8e3b: layout 2 columnes a detall i settings. Push a master. → Implementat:no Verificat:no Completat:no
 - 2026-06-14 17:47: 2 commits a master: 6062b73 (UI/UX) + cde8c05 (CLAUDE.md). Build OK, 101 tests OK.
 - 2026-06-14 17:47: 2 commits push: 6062b73 (UI/UX) + cde8c05 (CLAUDE.md) → Implementat:no Verificat:no Completat:no
 - 2026-06-14 17:43: CLAUDE.md actualitzat amb aprenentatges de la sessió.

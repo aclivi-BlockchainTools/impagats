@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatsCard from "../components/StatsCard";
@@ -91,7 +92,7 @@ export default function Dashboard() {
               <tr key={d.clientId || d.clientName} className={`border-t hover:bg-gray-50 ${isRepeat ? "bg-amber-50" : ""}`}>
                 <td className={`p-3 font-medium ${isRepeat ? "text-amber-900" : ""}`}>
                   {isRepeat && <span className="mr-1.5 text-amber-500" title="Múltiples períodes">🔁</span>}
-                  {d.clientName}
+                  <Link to={`/receipts?clientId=${d.clientId}`} className="text-blue-700 hover:underline">{d.clientName}</Link>
                 </td>
                 <td className="p-3 text-center">{d.receiptCount}</td>
                 <td className={`p-3 text-center font-semibold ${isRepeat ? "text-amber-700" : ""}`}>{d.periodCount}</td>

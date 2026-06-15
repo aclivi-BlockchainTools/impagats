@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
@@ -81,6 +81,8 @@ function SeguimentBadge({ status }: { status: string }) {
 }
 
 export default function ReturnedReceiptsList() {
+  const [searchParams] = useSearchParams();
+  const clientIdFromUrl = searchParams.get("clientId") || "";
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -89,10 +91,13 @@ export default function ReturnedReceiptsList() {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [quickFilter, setQuickFilter] = useState<string>("");
   const [page, setPage] = useState(1);
-  const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts({ ...filters, page: String(page), limit: "50" }));
+  const apiParams: Record<string, string> = { ...filters, page: String(page), limit: "50" };
+  if (clientIdFromUrl) apiParams.clientId = clientIdFromUrl;
 
-  useEffect(() => { setPage(1); }, [filters]);
-  useEffect(() => { reload(); }, [page, filters]);
+  const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(apiParams));
+
+  useEffect(() => { setPage(1); }, [filters, clientIdFromUrl]);
+  useEffect(() => { reload(); }, [page, filters, clientIdFromUrl]);
 
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
@@ -278,6 +283,17 @@ export default function ReturnedReceiptsList() {
           </select>
           <input className="border rounded px-3 py-2 text-sm flex-1" placeholder="Cercar impagats..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+
+        {/* Banner de filtre per client */}
+        {clientIdFromUrl && (
+          <div className="bg-blue-50 border border-blue-200 rounded px-4 py-2 flex items-center justify-between">
+            <span className="text-sm text-blue-800">
+              Filtrant per client: <span className="font-semibold">{receipts?.data?.[0]?.client?.name || `#${clientIdFromUrl}`}</span>
+              {" "}({receipts?.total || 0} rebuts)
+            </span>
+            <Link to="/receipts" className="text-sm text-blue-600 hover:underline">Treure filtre</Link>
+          </div>
+        )}
       </div>
 
       {/* Resum */}

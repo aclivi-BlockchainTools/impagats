@@ -23,7 +23,7 @@ const proofUpload = multer({
 const router = Router();
 
 router.get("/", asyncHandler(async (req: Request, res: Response) => {
-  const { status, clientId, minAmount, maxAmount, from, to } = req.query;
+  const { status, clientId, minAmount, maxAmount, from, to, search } = req.query;
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
   const skip = (page - 1) * limit;
@@ -40,6 +40,15 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
     where.returnDate = {};
     if (from) where.returnDate.gte = new Date(from as string);
     if (to) where.returnDate.lte = new Date(to as string);
+  }
+  if (search && String(search).trim()) {
+    const q = String(search).trim();
+    where.OR = [
+      { client: { name: { contains: q, mode: "insensitive" as const } } },
+      { receiptReference: { contains: q, mode: "insensitive" as const } },
+      { notes: { contains: q, mode: "insensitive" as const } },
+      { returnReason: { contains: q, mode: "insensitive" as const } },
+    ];
   }
 
   // Import pendent: excloure estats tancats si no hi ha filtre d'estat explícit

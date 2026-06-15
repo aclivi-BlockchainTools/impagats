@@ -85,33 +85,32 @@ export default function ReturnedReceiptsList() {
   const clientIdFromUrl = searchParams.get("clientId") || "";
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [sending, setSending] = useState(false);
   const [sortKey, setSortKey] = useState<string>("returnDate");
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [quickFilter, setQuickFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+  // Debounce search: 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const apiParams: Record<string, string> = { ...filters, page: String(page), limit: "50" };
   if (clientIdFromUrl) apiParams.clientId = clientIdFromUrl;
+  if (debouncedSearch.trim()) apiParams.search = debouncedSearch.trim();
 
   const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(apiParams));
 
-  useEffect(() => { setPage(1); }, [filters, clientIdFromUrl]);
-  useEffect(() => { reload(); }, [page, filters, clientIdFromUrl]);
+  useEffect(() => { setPage(1); }, [filters, clientIdFromUrl, debouncedSearch]);
+  useEffect(() => { reload(); }, [page, filters, clientIdFromUrl, debouncedSearch]);
 
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
     let list = receipts.data;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((r: any) =>
-        (r.client?.name && r.client.name.toLowerCase().includes(q)) ||
-        (r.receiptReference && r.receiptReference.toLowerCase().includes(q)) ||
-        (r.notes && r.notes.toLowerCase().includes(q)) ||
-        (r.returnReason && r.returnReason.toLowerCase().includes(q))
-      );
-    }
-    // Quick filter
+    // Quick filter (client-side: filtre visual per estat, sempre sobre dades ja filtrades pel servidor)
     if (quickFilter) {
       const qf = QUICK_FILTERS.find(f => f.key === quickFilter);
       if (qf) list = list.filter((r: any) => qf.statuses.includes(r.status));
@@ -133,7 +132,7 @@ export default function ReturnedReceiptsList() {
       if (va > vb) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [receipts, search, sortKey, sortDir, quickFilter]);
+  }, [receipts, sortKey, sortDir, quickFilter]);
 
   // Resum de dades visibles
   const totalVisible = filtered.length;

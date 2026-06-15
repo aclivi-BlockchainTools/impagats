@@ -42,6 +42,12 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
     if (to) where.returnDate.lte = new Date(to as string);
   }
 
+  // Import pendent: excloure estats tancats si no hi ha filtre d'estat explícit
+  const pendingWhere = { ...where };
+  if (!status) {
+    pendingWhere.status = { notIn: ["TANCAT", "IGNORAT", "PAGAMENT_CONFIRMAT"] };
+  }
+
   const [receipts, total, clientGroups, amountAgg] = await Promise.all([
     prisma.returnedReceipt.findMany({
       where,
@@ -56,7 +62,7 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
       where,
     }),
     prisma.returnedReceipt.aggregate({
-      where,
+      where: pendingWhere,
       _sum: { returnedAmount: true },
     }),
   ]);

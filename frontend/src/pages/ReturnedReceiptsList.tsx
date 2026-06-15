@@ -137,7 +137,6 @@ export default function ReturnedReceiptsList() {
 
   // Resum de dades visibles
   const totalVisible = filtered.length;
-  const totalImportVisible = filtered.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0);
   const selectedReceipts = filtered.filter((r: any) => selected.has(r.id));
   const selectedImport = selectedReceipts.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0);
   const totalClients = receipts?.uniqueClients ?? 0;
@@ -306,11 +305,6 @@ export default function ReturnedReceiptsList() {
           <div>
             <span className="text-gray-500">Clients diferents:</span>{" "}
             <span className="font-semibold text-lg">{totalClients}</span>
-          </div>
-          <div className="border-l border-gray-200 pl-6">
-            <span className="text-gray-500">En aquesta pàgina:</span>{" "}
-            <span className="font-semibold">{totalVisible} impagats</span>
-            <span className="text-gray-400"> · {totalImportVisible.toFixed(2)} €</span>
           </div>
           {selected.size > 0 && (
             <>

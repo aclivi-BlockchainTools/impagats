@@ -1,13 +1,16 @@
 import { z, ZodSchema } from "zod";
 
+// Preprocess: empty string → null per camps opcionals
+const emptyToNull = (v: unknown) => (v === "" ? null : v);
+
 // --- Client ---
 export const createClientSchema = z.object({
   name: z.string().min(1, "Nom requerit"),
-  nif: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  whatsapp: z.string().nullable().optional(),
-  email: z.string().email("Email invàlid").nullable().optional(),
-  externalRef: z.string().nullable().optional(),
+  nif: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  phone: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  whatsapp: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  email: z.preprocess(emptyToNull, z.string().email("Email invàlid").nullable().optional()),
+  externalRef: z.preprocess(emptyToNull, z.string().nullable().optional()),
   active: z.boolean().optional(),
 });
 

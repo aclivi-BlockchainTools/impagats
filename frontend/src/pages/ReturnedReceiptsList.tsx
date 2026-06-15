@@ -306,6 +306,10 @@ export default function ReturnedReceiptsList() {
             <span className="text-gray-500">Clients diferents:</span>{" "}
             <span className="font-semibold text-lg">{totalClients}</span>
           </div>
+          <div className="border-l border-gray-200 pl-6">
+            <span className="text-gray-500">Import pendent:</span>{" "}
+            <span className="font-semibold text-lg">{(receipts?.pendingAmount || 0).toFixed(2)} €</span>
+          </div>
           {selected.size > 0 && (
             <>
               <div className="border-l border-gray-200 pl-6">

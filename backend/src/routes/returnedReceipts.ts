@@ -42,7 +42,7 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
     if (to) where.returnDate.lte = new Date(to as string);
   }
 
-  const [receipts, total, clientGroups] = await Promise.all([
+  const [receipts, total, clientGroups, amountAgg] = await Promise.all([
     prisma.returnedReceipt.findMany({
       where,
       skip,
@@ -55,9 +55,14 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
       by: ["clientId"],
       where,
     }),
+    prisma.returnedReceipt.aggregate({
+      where,
+      _sum: { returnedAmount: true },
+    }),
   ]);
   const uniqueClients = clientGroups.length;
-  res.json({ data: receipts, total, page, limit, uniqueClients });
+  const pendingAmount = amountAgg._sum.returnedAmount ? Number(amountAgg._sum.returnedAmount) : 0;
+  res.json({ data: receipts, total, page, limit, uniqueClients, pendingAmount });
 }));
 
 router.post("/", asyncHandler(async (req: Request, res: Response) => {

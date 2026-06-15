@@ -371,9 +371,9 @@ export default function ReturnedReceiptsList() {
               </tr>
             ))}
             {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search || quickFilter ? "Cap coincidència" : "Cap impagat"}</td></tr>}
-            {receipts && filtered.length > 0 && (
+            {receipts && receipts.total > receipts.limit && (
               <tr><td colSpan={11} className="p-3 text-right text-sm text-gray-500">
-                Mostrant {filtered.length} de {receipts.total} — Pàg {receipts.page}
+                Pàgina {receipts.page} de {Math.ceil(receipts.total / receipts.limit)}
               </td></tr>
             )}
           </tbody>

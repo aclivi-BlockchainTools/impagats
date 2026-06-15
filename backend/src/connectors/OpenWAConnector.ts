@@ -32,8 +32,8 @@ export class OpenWAConnector {
     }
 
     try {
-      // Format: phone@c.us for individual chats (strip leading +)
-      const cleanPhone = phone.replace(/^\+/, "");
+      // Format: phone@c.us for individual chats (strip +, spaces, and all non-digits)
+      const cleanPhone = phone.replace(/\D/g, "");
       const chatId = cleanPhone.includes("@") ? cleanPhone : `${cleanPhone}@c.us`;
 
       const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/messages/send-text`, {

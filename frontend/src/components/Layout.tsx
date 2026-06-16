@@ -10,6 +10,8 @@ const navItems = [
   { to: "/settings", label: "Configuració" },
 ];
 
+const uispUrl = window.location.origin;
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-gray-50">
@@ -27,6 +29,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {item.label}
             </NavLink>
           ))}
+          <a
+            href={uispUrl}
+            className="block px-3 py-2 rounded mb-1 text-sm text-slate-300 hover:bg-slate-700"
+          >
+            Monitor
+          </a>
         </nav>
       </aside>
       <main className="flex-1 overflow-auto p-6">{children}</main>

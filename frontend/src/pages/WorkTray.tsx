@@ -120,16 +120,7 @@ export default function WorkTray() {
     [receipts, active]
   );
 
-  // Per als notificats, només mostrar si fa >48h
-  const displayFiltered = useMemo(() => {
-    if (activeFilter === "notified_no_response") {
-      return filtered.filter((r: any) => {
-        const days = daysSince(r.notifiedAt);
-        return days !== null && days >= 2;
-      });
-    }
-    return filtered;
-  }, [filtered, activeFilter]);
+  const displayFiltered = filtered;
 
   return (
     <div>

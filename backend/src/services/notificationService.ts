@@ -124,6 +124,30 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
     return { success: false, error: "Missatge no encuat" };
   }
 
+  // Actualitzar TOTS els rebuts a NOTIFICAT i crear missatges per tots
+  // (processOneMessage només ho farà pel primer)
+  for (const r of receipts) {
+    // Crear registre de missatge per cada rebut (menys el primer, que ho farà processOneMessage)
+    if (r.id !== firstReceiptId) {
+      await prisma.message.create({
+        data: {
+          receiptId: r.id,
+          direction: "OUTBOUND",
+          content: text,
+          status: "sent",
+        },
+      });
+    }
+
+    // Actualitzar estat a NOTIFICAT si cal
+    if (["DETECTAT", "EMPARELLAT", "REVISAR"].includes(r.status)) {
+      await prisma.returnedReceipt.update({
+        where: { id: r.id },
+        data: { status: "NOTIFICAT", notifiedAt: new Date() },
+      });
+    }
+  }
+
   await auditLog("ENQUEUE_BULK_WHATSAPP", "ReturnedReceipt", undefined, {
     receiptIds,
     clientId: client.id,

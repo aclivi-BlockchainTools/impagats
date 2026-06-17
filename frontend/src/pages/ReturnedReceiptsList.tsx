@@ -252,7 +252,15 @@ export default function ReturnedReceiptsList() {
           {QUICK_FILTERS.map((qf) => (
             <button
               key={qf.key}
-              onClick={() => setQuickFilter(quickFilter === qf.key ? "" : qf.key)}
+              onClick={() => {
+                if (quickFilter === qf.key) {
+                  setQuickFilter("");
+                  setFilters(({ status, ...rest }) => rest);
+                } else {
+                  setQuickFilter(qf.key);
+                  setFilters(f => ({ ...f, status: qf.statuses.join(",") }));
+                }
+              }}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${quickFilter === qf.key ? qf.activeColor : qf.color + " hover:border-gray-300"}`}
             >

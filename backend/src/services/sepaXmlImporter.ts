@@ -82,19 +82,16 @@ function rejectionLabel(code: string): string {
   return meaning ? `${code} - ${meaning}` : code;
 }
 
-function computeServicePeriod(date: Date, invoiceDate?: Date): string {
+// Re-exporta computeServicePeriod per compatibilitat amb crides existents
+import { computeServicePeriod } from "./returnDetector";
+
+function computeSepaPeriod(date: Date, invoiceDate?: Date): string {
   const monthNames = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
     "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
-  // Si tenim data de factura, usar-la per saber el mes real del servei
   if (invoiceDate) {
     return `${monthNames[invoiceDate.getMonth()]} ${invoiceDate.getFullYear()}`;
   }
-  // Sense data de factura: el rebut s'emet el mes següent al servei → mes anterior
-  const m = date.getMonth();
-  const y = date.getFullYear();
-  const sm = m === 0 ? 12 : m;
-  const sy = m === 0 ? y - 1 : y;
-  return `${monthNames[sm - 1]} ${sy}`;
+  return computeServicePeriod(date);
 }
 
 // Navega un objecte XML parsejat per trobar valors amb camí (suporta namespaces)
@@ -296,7 +293,7 @@ export async function importSepaXml(xmlContent: string, batchId?: number): Promi
       });
       imported++;
 
-      const servicePeriod = computeServicePeriod(tx.collectionDate, tx.invoiceDate);
+      const servicePeriod = computeSepaPeriod(tx.collectionDate, tx.invoiceDate);
       let notes = servicePeriod ? `Període: ${servicePeriod}` : "";
       if ((tx.rawData as any).dateSource && (tx.rawData as any).dateSource !== "ReqdColltnDt") {
         notes = notes ? `${notes} ⚠️ Data estimada (${(tx.rawData as any).dateSource})` : `⚠️ Data estimada (${(tx.rawData as any).dateSource})`;

@@ -13,6 +13,33 @@ const MONTHS_CA = [
   "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre",
 ];
 
+export function computeServicePeriod(date: Date): string {
+  const day = date.getDate();
+  const month = date.getMonth(); // 0-based: 0=Gener, 11=Desembre
+  const year = date.getFullYear();
+
+  let serviceMonth: number;
+  let serviceYear: number;
+
+  if (day <= 10) {
+    // Primers 10 dies del mes → període = mes anterior
+    serviceMonth = month - 1;
+    if (serviceMonth < 0) { serviceMonth = 11; serviceYear = year - 1; }
+    else serviceYear = year;
+  } else if (day >= 21) {
+    // Últims ~10 dies del mes → període = aquest mes
+    serviceMonth = month;
+    serviceYear = year;
+  } else {
+    // Dies 11-20 → mes anterior (comportament per defecte)
+    serviceMonth = month - 1;
+    if (serviceMonth < 0) { serviceMonth = 11; serviceYear = year - 1; }
+    else serviceYear = year;
+  }
+
+  return `${MONTHS_CA[serviceMonth]} ${serviceYear}`;
+}
+
 function extractServiceInfo(rawData: any): { valorDate: Date | null; servicePeriod: string | null } {
   if (!rawData || typeof rawData !== "object") return { valorDate: null, servicePeriod: null };
   const rawValor = rawData.Valor || rawData.valor || rawData.VALOR;
@@ -29,13 +56,9 @@ function extractServiceInfo(rawData: any): { valorDate: Date | null; servicePeri
   const valorDate = new Date(year, month - 1, day);
   if (isNaN(valorDate.getTime())) return { valorDate: null, servicePeriod: null };
 
-  const serviceMonth = month - 1;
-  const serviceYear = serviceMonth < 1 ? year - 1 : year;
-  const serviceMonthFixed = serviceMonth < 1 ? 12 : serviceMonth;
-
   return {
     valorDate,
-    servicePeriod: `${MONTHS_CA[serviceMonthFixed - 1]} ${serviceYear}`,
+    servicePeriod: computeServicePeriod(valorDate),
   };
 }
 

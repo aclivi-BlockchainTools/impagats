@@ -29,7 +29,10 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
   const skip = (page - 1) * limit;
   const where: any = {};
 
-  if (status) where.status = status as string;
+  if (status) {
+    const statuses = (status as string).split(",").filter(Boolean);
+    where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
+  }
   if (clientId) where.clientId = parseInt(clientId as string);
   if (minAmount || maxAmount) {
     where.returnedAmount = {};
@@ -89,19 +92,15 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
   const rawData: any = { manual: true };
   if (receiptDate) rawData.Valor = receiptDate;
 
-  // Calculate service period from receiptDate (month before)
+  // Calculate service period from receiptDate
   let servicePeriod: string | null = null;
   if (receiptDate) {
-    const months = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
-      "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
     const dm = String(receiptDate).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
     if (dm) {
-      const m = parseInt(dm[2]);
-      let y = parseInt(dm[3]);
+      const d = parseInt(dm[1]), m = parseInt(dm[2]); let y = parseInt(dm[3]);
       if (y < 100) y += 2000;
-      const sm = m - 1 < 1 ? 12 : m - 1;
-      const sy = m - 1 < 1 ? y - 1 : y;
-      servicePeriod = `${months[sm - 1]} ${sy}`;
+      const { computeServicePeriod } = require("../services/returnDetector");
+      servicePeriod = computeServicePeriod(new Date(y, m - 1, d));
     }
   }
 

@@ -511,4 +511,41 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 ### Migracions
 - `Client.whatsappBlocked` (Boolean, default false)
 - `PaymentPromise` (nou model: receiptId, clientId, body, promisedDate, status)
+- `Client.poble` (rename nif → poble)
+- `Baixa` (nou model: clientId únic, date)
+
+## Aprenentatges de la sessió 2026-06-17
+
+### Camp poble
+- `nif` renombrat a `poble` (String?) al model Client, validació Zod, seed.ts, ClientForm, ClientsList
+- Migració: `ALTER TABLE "Client" RENAME COLUMN "nif" TO "poble"`
+- Canvi fet via `prisma migrate resolve` + `prisma db execute` per problemes amb shadow DB
+
+### Baixes
+- Nou model `Baixa` (id, clientId únic, date, createdAt) amb relació 1:1 a Client
+- Endpoint `GET/POST/DELETE /api/baixes` (protegit amb auth)
+- Pàgina `BaixesList.tsx` a ruta `/baixes`, enllaç "Baixes" al menú lateral
+- Clients de baixa mostren badge vermell "Baixa" a ClientsList, ReturnedReceiptsList i ReceiptInfo
+- API: GET /clients i GET /returned-receipts inclouen `baixa: true` al include
+
+### Re-avaluació WhatsApp
+- `reEvaluateClientReceipts(clientId)` a matchingEngine.ts: quan s'afegeix WhatsApp a un client, tots els seus rebuts REVISAR passen a EMPARELLAT
+- Cridat des de PUT /api/clients/:id si `v.data.whatsapp`
+- Creació manual d'impagat: comprova WhatsApp del client abans d'assignar estat (EMPARELLAT/REVISAR/DETECTAT)
+
+### Validació Zod
+- `emptyToNullNumber` preprocess: converteix `""` → `null` per camps numèrics opcionals
+- Aplicat a `updateReceiptSchema.clientId` i `updateReceiptSchema.invoiceId`
+- Evita error "expected number, received string" quan el frontend envia camps buits
+
+### Fitxers no rastrejats
+- `.gitignore` actualitzat: `.playwright-mcp/`, `backend/storage/`, `*.png`, `*.jpg`, `test.csv`
+
+### Prisma shadow DB
+- Si la shadow DB falla, crear migració manualment:
+  1. `mkdir prisma/migrations/{timestamp}_{name}`
+  2. Escriure `migration.sql`
+  3. `npx prisma migrate resolve --applied {name}`
+  4. `npx prisma db execute --file prisma/migrations/{name}/migration.sql`
+  5. `npx prisma generate`
 

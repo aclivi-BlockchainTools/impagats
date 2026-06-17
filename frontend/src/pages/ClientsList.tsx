@@ -14,7 +14,7 @@ export default function ClientsList() {
     const q = search.toLowerCase();
     return clients.filter((c: any) =>
       c.name.toLowerCase().includes(q) ||
-      (c.nif && c.nif.toLowerCase().includes(q)) ||
+      (c.poble && c.poble.toLowerCase().includes(q)) ||
       (c.whatsapp && c.whatsapp.includes(q)) ||
       (c.email && c.email.toLowerCase().includes(q))
     );
@@ -70,7 +70,7 @@ export default function ClientsList() {
             <tr>
               <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
               <th className="text-left p-3">Nom</th>
-              <th className="text-left p-3">NIF</th>
+              <th className="text-left p-3">Poble</th>
               <th className="text-left p-3">WhatsApp</th>
               <th className="text-left p-3">Email</th>
               <th className="text-left p-3">Estat</th>
@@ -82,10 +82,18 @@ export default function ClientsList() {
               <tr key={c.id} className="border-t">
                 <td className="p-3"><input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} /></td>
                 <td className="p-3">{c.name}</td>
-                <td className="p-3">{c.nif || "-"}</td>
+                <td className="p-3">{c.poble || "-"}</td>
                 <td className="p-3">{c.whatsapp || "-"}</td>
                 <td className="p-3">{c.email || "-"}</td>
-                <td className="p-3">{c.active ? "Actiu" : "Inactiu"}</td>
+                <td className="p-3">
+                  {c.baixa ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500"/>Baixa
+                    </span>
+                  ) : (
+                    c.active ? "Actiu" : "Inactiu"
+                  )}
+                </td>
                 <td className="p-3 text-right space-x-2">
                   <Link to={`/clients/${c.id}`} className="text-blue-600 hover:underline">Editar</Link>
                   <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline">Eliminar</button>

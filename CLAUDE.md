@@ -100,7 +100,7 @@ impagats/
 
 | Entitat | Camps clau |
 |---------|-----------|
-| **Client** | name, nif, phone, whatsapp, email, externalRef, active |
+| **Client** | name, poble, phone, whatsapp, email, externalRef, active |
 | **Invoice** | clientId, invoiceNumber, date, dueDate, amount, status |
 | **BankMovement** | rawData (JSON), concept, amount, date, reference, iban, isReturn |
 | **ReturnedReceipt** | clientId?, invoiceId?, bankMovementId, returnedAmount, returnDate, status, timestamps |

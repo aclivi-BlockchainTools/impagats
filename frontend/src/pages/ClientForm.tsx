@@ -61,7 +61,7 @@ export default function ClientForm() {
   const isEdit = !!id;
 
   const [form, setForm] = useState({
-    name: "", nif: "", phone: "", whatsapp: "", email: "", externalRef: "", active: true,
+    name: "", poble: "", phone: "", whatsapp: "", email: "", externalRef: "", active: true,
   });
 
   // Carregar dades del client + rebuts + factures quan s'edita
@@ -75,7 +75,7 @@ export default function ClientForm() {
   useEffect(() => {
     if (isEdit) {
       api.getClient(parseInt(id!)).then((c) => setForm({
-        name: c.name || "", nif: c.nif || "", phone: c.phone || "",
+        name: c.name || "", poble: c.poble || "", phone: c.phone || "",
         whatsapp: c.whatsapp || "", email: c.email || "",
         externalRef: c.externalRef || "", active: c.active ?? true,
       }));
@@ -111,8 +111,8 @@ export default function ClientForm() {
               <input required className="w-full border rounded px-3 py-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">NIF/CIF</label>
-              <input className="w-full border rounded px-3 py-2" value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} />
+              <label className="block text-sm font-medium mb-1">Poble</label>
+              <input className="w-full border rounded px-3 py-2" value={form.poble} onChange={(e) => setForm({ ...form, poble: e.target.value })} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">WhatsApp</label>

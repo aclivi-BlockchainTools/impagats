@@ -4,3 +4,8 @@ dist/
 *.log
 uploads/
 .superpowers/
+.playwright-mcp/
+backend/storage/
+*.png
+*.jpg
+test.csv

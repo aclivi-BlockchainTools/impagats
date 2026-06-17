@@ -18,12 +18,12 @@ async function seed() {
   await prisma.appSettings.deleteMany();
 
   console.log("Creant clients...");
-  const c1 = await prisma.client.create({ data: { name: "Marc Garcia", nif: "12345678A", phone: "600111222", whatsapp: "34600111222", email: "marc@example.com", active: true } });
-  const c2 = await prisma.client.create({ data: { name: "Anna Pujol", nif: "23456789B", phone: "600222333", whatsapp: "34600222333", email: "anna@example.com", active: true } });
-  const c3 = await prisma.client.create({ data: { name: "Joan Ferrer", nif: "34567890C", phone: "600333444", whatsapp: "34600333444", email: "joan@example.com", active: true } });
-  const c4 = await prisma.client.create({ data: { name: "Marta Soler", nif: "45678901D", phone: "600444555", whatsapp: null, email: "marta@example.com", active: true } });
-  const c5 = await prisma.client.create({ data: { name: "Pere Vidal", nif: "56789012E", phone: "600555666", whatsapp: "34600555666", email: "pere@example.com", active: true } });
-  const c6 = await prisma.client.create({ data: { name: "Laura Casas", nif: "67890123F", phone: "600666777", whatsapp: "34600666777", email: "laura@example.com", active: true } });
+  const c1 = await prisma.client.create({ data: { name: "Marc Garcia", poble: "Barcelona", phone: "600111222", whatsapp: "34600111222", email: "marc@example.com", active: true } });
+  const c2 = await prisma.client.create({ data: { name: "Anna Pujol", poble: "Girona", phone: "600222333", whatsapp: "34600222333", email: "anna@example.com", active: true } });
+  const c3 = await prisma.client.create({ data: { name: "Joan Ferrer", poble: "Lleida", phone: "600333444", whatsapp: "34600333444", email: "joan@example.com", active: true } });
+  const c4 = await prisma.client.create({ data: { name: "Marta Soler", poble: "Tarragona", phone: "600444555", whatsapp: null, email: "marta@example.com", active: true } });
+  const c5 = await prisma.client.create({ data: { name: "Pere Vidal", poble: "Vic", phone: "600555666", whatsapp: "34600555666", email: "pere@example.com", active: true } });
+  const c6 = await prisma.client.create({ data: { name: "Laura Casas", poble: "Manresa", phone: "600666777", whatsapp: "34600666777", email: "laura@example.com", active: true } });
 
   console.log("Creant factures...");
   const i1 = await prisma.invoice.create({ data: { clientId: c1.id, invoiceNumber: "F2026-001", date: new Date("2026-05-01"), dueDate: new Date("2026-05-15"), amount: 45.50, status: "pending" } });

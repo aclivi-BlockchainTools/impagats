@@ -209,6 +209,37 @@ export async function matchReceipt(receiptId: number, tx: TxClient = prisma): Pr
   });
 }
 
+// Re-avalua els rebuts REVISAR d'un client quan se li afegeix WhatsApp.
+// Retorna el nombre de rebuts actualitzats a EMPARELLAT.
+export async function reEvaluateClientReceipts(clientId: number, tx: TxClient = prisma): Promise<number> {
+  const client = await tx.client.findUnique({ where: { id: clientId } });
+  if (!client?.whatsapp) return 0;
+
+  const receipts = await tx.returnedReceipt.findMany({
+    where: { clientId, status: "REVISAR" },
+    select: { id: true },
+  });
+
+  if (receipts.length === 0) return 0;
+
+  await tx.returnedReceipt.updateMany({
+    where: { id: { in: receipts.map((r) => r.id) } },
+    data: { status: "EMPARELLAT" },
+  });
+
+  const reason = `WhatsApp activat al client (${client.whatsapp})`;
+  for (const r of receipts) {
+    await recordStatusChange({
+      receiptId: r.id,
+      fromStatus: "REVISAR",
+      toStatus: "EMPARELLAT",
+      reason,
+    });
+  }
+
+  return receipts.length;
+}
+
 export async function matchAllDetected(tx: TxClient = prisma): Promise<number> {
   const detected = await tx.returnedReceipt.findMany({
     where: { status: "DETECTAT" },

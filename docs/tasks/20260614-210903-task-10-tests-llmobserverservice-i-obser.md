@@ -190,12 +190,34 @@ Aquest és el camí més simple: tests unitaris clars, sense complexitat extra, 
 
 ## Estat
 
-Implementat: no
-Verificat: no
-Completat: no
+Implementat: sí
+Verificat: sí
+Completat: sí
 
 ## Notes
 
+- 2026-06-17 18:59: 165 tests pass (13 suites), builds OK. LLM observer tests creats i passant.
+- 2026-06-17 18:58: 165 tests pass (13 suites), backend + frontend builds nets
+- 2026-06-17 15:03: Backend: GET /clients i GET /returned-receipts inclouen baixa del client. Frontend: ClientsList mostra badge "Baixa" vermell, ReturnedReceiptsList i ReceiptInfo mostren etiqueta "Baixa" al costat del nom del client → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 14:52: Creat model Baixa (clientId únic, date), migració BD, endpoint /api/baixes (GET/POST/DELETE), pàgina BaixesList.tsx, ruta /baixes, enllaç al menú lateral "Baixes" → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 14:15: Substitució nif → poble: schema Prisma, migració BD, validació Zod, seed.ts, ClientForm.tsx, ClientsList.tsx, CLAUDE.md → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 13:24: 1) POST creació manual: ara comprova WhatsApp del client abans de decidir estat (EMPARELLAT/REVISAR/DETECTAT). 2) updateReceiptSchema: clientId i invoiceId accepten string buida → null via emptyToNullNumber preprocess. 3) Frontend ReceiptInfo: inicialitza clientId/invoiceId a null en lloc de "". → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 13:14: Executada re-avaluació massiva: 23 rebuts REVISAR→EMPARELLAT en 15 clients que ja tenien WhatsApp → Implementat:no Verificat:no Completat:no
+- 2026-06-17 13:12: Afegit reEvaluateClientReceipts() a matchingEngine.ts. Quan s'afegeix WhatsApp a un client via PUT, tots els seus rebuts REVISAR passen a EMPARELLAT automàticament. → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 13:10: Actualitzat .gitignore (afegit .playwright-mcp/, backend/storage/, *.png, *.jpg, test.csv). Esborrats 3 screenshots PNG i test.csv. ESLint descartat (no hi ha dependències). → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 13:08: Revisió completa: git status, 165 tests (OK), build backend (OK), build frontend (OK), prisma validate (OK), TSC strict (OK), ESLint (manca config), fitxers no rastrejats, tasca pendent → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 13:05: Commit cf84794 + push a origin/master. 5 fitxers: període servei, filtres server-side, bulk WhatsApp fix. → Implementat:no Verificat:no Completat:no
+- 2026-06-17 13:04: Sessió 2026-06-16/17: webhooks ngrok, WorkTray fix, bulk WhatsApp fix, paginació 50 files, lògica període servei (10 dies), filtres ràpids server-side
+- 2026-06-16 16:16: Aplicada nova lògica de càlcul de període a tots els rebuts existents: 29 actualitzats, 45 sense canvis. #327 corregit de Gener 2026 → Febrer 2026. → Implementat:no Verificat:no Completat:no
+- 2026-06-16 16:13: Implementada nova lògica de càlcul del període de servei: dies 1-10 → mes anterior, dies 21-31 → mes actual, dies 11-20 → mes anterior (default). Funció compartida computeServicePeriod() exportada des de returnDetector.ts, usada per CSV, SEPA XML i creació manual. → Implementat:no Verificat:sí Completat:no
+- 2026-06-16 16:03: Corregit: filtres ràpids de la llista d'impagats ara filtren al servidor (no al client). Backend suporta status múltiples (comma-separated). → Implementat:no Verificat:no Completat:no
+- 2026-06-16 15:40: Corregit bug: sendBulkWhatsApp només actualitzava el primer rebut. Afegit codi per actualitzar tots els rebuts a NOTIFICAT i crear missatges per tots. Dades històriques de CANIZOS ALPE corregides (#321, #338). → Implementat:sí Verificat:no Completat:no
+- 2026-06-16 15:35: Commit 62845ea: fix WorkTray — eliminat filtre 48h que amagava rebuts NOTIFICAT. 165 tests pass, build OK. → Implementat:no Verificat:no Completat:no
+- 2026-06-16 15:34: WorkTray fix: eliminat filtre 48h que amagava rebuts NOTIFICAT. Comptador i llista coherents.
+- 2026-06-16 15:34: Eliminat filtre 48h i filtre INBOUND al WorkTray per "Notificats sense resposta". Ara mostra tots els rebuts NOTIFICAT sense cap filtre extra. Comptador i llista coherents. → Implementat:no Verificat:no Completat:no
+- 2026-06-16 15:28: Corregit bug: WorkTray comptador "Notificats sense resposta" no aplicava filtre 48h. Editat WorkTray.tsx línia 146 per aplicar el mateix filtre daysSince >= 2. → Implementat:no Verificat:no Completat:no
+- 2026-06-16 15:21: Esborrats 2 webhooks amb IP pública (79.155.184.22) i creat 1 webhook amb URL ngrok (chia-vaporescent-miley.ngrok-free.dev) → Implementat:sí Verificat:sí Completat:sí
+- 2026-06-16 15:16: Anàlisi completa de la connectivitat: ngrok, proxy uisp-monitor, backend, frontend, OpenWA i webhooks → Implementat:sí Verificat:no Completat:no
 - 2026-06-15 07:31: Dashboard: noms de deutors convertits en enllaços a /receipts?clientId=X. ReturnedReceiptsList: llegeix clientId de la URL i el passa directament a l'API (sense interferir amb l'estat filters). Afegit banner blau "Filtrant per client" amb enllaç "Treure filtre". → Implementat:no Verificat:no Completat:no
 - 2026-06-14 21:11: 11 tasques completades en 10 commits. 165 tests pass (13 suites). Builds backend i frontend OK. LLM Observer implementat amb: 3 nivells d'anàlisi, multi-provider (OpenAI/Anthropic/DeepSeek), anonimització, endpoints CRUD, UI amb 5 subpestanyes. La LLM MAI respon automàticament, tot requereix aprovació humana.
 - 2026-06-14 21:11: Implementació completa del pla (11 tasques): models Prisma, anonimitzador, 3 adaptadors LLM, servei observer N1/N2/N3, integració webhook async, 11 endpoints CRUD, frontend AgentObserverSection amb 5 subpestanyes, 34 tests nous, build OK → Implementat:sí Verificat:no Completat:no

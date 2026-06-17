@@ -181,4 +181,10 @@ export const api = {
   deleteObserverKeyword: (id: number) =>
     request<void>(`/observer/keywords/${id}`, { method: "DELETE" }),
   testObserver: () => request<any>("/observer/test", { method: "POST" }),
+
+  // Baixes
+  getBaixes: () => request<any[]>("/baixes"),
+  createBaixa: (clientId: number, date: string) =>
+    request<any>("/baixes", { method: "POST", body: JSON.stringify({ clientId, date }) }),
+  deleteBaixa: (id: number) => request<void>(`/baixes/${id}`, { method: "DELETE" }),
 };

@@ -65,7 +65,7 @@ router.get("/", asyncHandler(async (req: Request, res: Response) => {
       where,
       skip,
       take: limit,
-      include: { client: true, invoice: true, bankMovement: true },
+      include: { client: { include: { baixa: true } }, invoice: true, bankMovement: true },
       orderBy: { returnDate: "desc" },
     }),
     prisma.returnedReceipt.count({ where }),
@@ -115,6 +115,13 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
     },
   });
 
+  // Determinar estat inicial: EMPARELLAT només si el client té WhatsApp
+  let initialStatus = "DETECTAT";
+  if (clientId) {
+    const client = await prisma.client.findUnique({ where: { id: clientId }, select: { whatsapp: true } });
+    initialStatus = client?.whatsapp ? "EMPARELLAT" : "REVISAR";
+  }
+
   const receipt = await prisma.returnedReceipt.create({
     data: {
       clientId,
@@ -126,7 +133,7 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
       returnReason: returnReason || null,
       notes: notes || null,
       servicePeriod,
-      status: clientId ? "EMPARELLAT" : "DETECTAT",
+      status: initialStatus,
     },
   });
 

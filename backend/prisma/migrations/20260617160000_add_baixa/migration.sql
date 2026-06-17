@@ -1,0 +1,9 @@
+CREATE TABLE "Baixa" (
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Baixa_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Baixa_clientId_key" UNIQUE ("clientId"),
+    CONSTRAINT "Baixa_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

@@ -40,8 +40,8 @@ export default function ReceiptInfo({ receipt, clients, invoices, onReload }: Pr
       notes: receipt.notes || "",
       servicePeriod: receipt.servicePeriod || "",
       returnReason: receipt.returnReason || "",
-      clientId: receipt.clientId || "",
-      invoiceId: receipt.invoiceId || "",
+      clientId: receipt.clientId || null,
+      invoiceId: receipt.invoiceId || null,
     });
     setEdit(true);
   };
@@ -126,7 +126,7 @@ export default function ReceiptInfo({ receipt, clients, invoices, onReload }: Pr
         <div>
           <span className="text-xs text-gray-500">Client</span>
           <div className="text-sm">
-            {receipt.client ? receipt.client.name : <span className="text-orange-600">No assignat</span>}
+            {receipt.client ? <>{receipt.client.name}{receipt.client.baixa && <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">Baixa</span>}</> : <span className="text-orange-600">No assignat</span>}
           </div>
         </div>
         <div>

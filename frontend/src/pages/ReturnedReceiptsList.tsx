@@ -358,6 +358,7 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3 max-w-[160px]">
                   <span className="font-medium truncate block" title={r.client?.name}>
                     {r.client?.name || <span className="text-orange-500">No assignat</span>}
+                    {r.client?.baixa && <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">Baixa</span>}
                   </span>
                 </td>
                 <td className="p-3 font-mono text-xs">{r.receiptReference || "-"}</td>

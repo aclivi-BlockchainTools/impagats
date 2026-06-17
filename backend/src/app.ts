@@ -17,6 +17,7 @@ import caseNotesRouter from "./routes/caseNotes";
 import proofsRouter from "./routes/proofs";
 import reconciliationRouter from "./routes/reconciliation";
 import observerRouter from "./routes/observer";
+import baixesRouter from "./routes/baixes";
 
 const app = express();
 app.use(cors({
@@ -54,6 +55,7 @@ app.use("/api/case-notes", authMiddleware, caseNotesRouter);
 app.use("/api/proofs", authMiddleware, proofsRouter);
 app.use("/api/reconciliation", authMiddleware, reconciliationRouter);
 app.use("/api/observer", authMiddleware, observerRouter);
+app.use("/api/baixes", authMiddleware, baixesRouter);
 app.use(errorHandler);
 
 export default app;

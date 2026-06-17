@@ -3,11 +3,15 @@ import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validate, createClientSchema, updateClientSchema } from "../lib/validation";
+import { reEvaluateClientReceipts } from "../services/matchingEngine";
 
 const router = Router();
 
 router.get("/", asyncHandler(async (_req: Request, res: Response) => {
-  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+  const clients = await prisma.client.findMany({
+    orderBy: { name: "asc" },
+    include: { baixa: true },
+  });
   res.json(clients);
 }));
 
@@ -28,11 +32,21 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
 router.put("/:id", asyncHandler(async (req: Request, res: Response) => {
   const v = validate(updateClientSchema, req.body);
   if (!v.success) return res.status(400).json({ error: v.error });
+  const clientId = parseInt(req.params.id as string);
   const client = await prisma.client.update({
-    where: { id: parseInt(req.params.id as string) },
+    where: { id: clientId },
     data: v.data,
   });
   await auditLog("UPDATE", "Client", client.id, req.body);
+
+  // Si s'ha activat WhatsApp, re-avaluar rebuts REVISAR → EMPARELLAT
+  if (v.data.whatsapp) {
+    const updated = await reEvaluateClientReceipts(clientId);
+    if (updated > 0) {
+      (req as any).log?.info?.({ clientId, updatedReceipts: updated }, "REVISAR→EMPARELLAT per WhatsApp activat");
+    }
+  }
+
   res.json(client);
 }));
 

@@ -10,7 +10,7 @@ datasource db {
 model Client {
   id              Int       @id @default(autoincrement())
   name            String
-  nif             String?
+  poble             String?
   phone           String?
   whatsapp        String?
   whatsappBlocked Boolean   @default(false)
@@ -23,6 +23,7 @@ model Client {
   invoices         Invoice[]
   returnedReceipts ReturnedReceipt[]
   paymentPromises  PaymentPromise[]
+  baixa            Baixa?
 }
 
 model Invoice {
@@ -281,4 +282,13 @@ model AppSettings {
   key       String @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model Baixa {
+  id        Int      @id @default(autoincrement())
+  clientId   Int      @unique
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
 }

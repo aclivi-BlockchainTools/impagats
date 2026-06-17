@@ -2,11 +2,12 @@ import { z, ZodSchema } from "zod";
 
 // Preprocess: empty string → null per camps opcionals
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
+const emptyToNullNumber = (v: unknown) => (v === "" || v === null || v === undefined ? null : Number(v));
 
 // --- Client ---
 export const createClientSchema = z.object({
   name: z.string().min(1, "Nom requerit"),
-  nif: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  poble: z.preprocess(emptyToNull, z.string().nullable().optional()),
   phone: z.preprocess(emptyToNull, z.string().nullable().optional()),
   whatsapp: z.preprocess(emptyToNull, z.string().nullable().optional()),
   email: z.preprocess(emptyToNull, z.string().email("Email invàlid").nullable().optional()),
@@ -32,7 +33,7 @@ export const updateInvoiceSchema = createInvoiceSchema.partial();
 // --- ReturnedReceipt create (manual) ---
 export const createReceiptSchema = z.object({
   clientId: z.number().int().positive("clientId requerit"),
-  invoiceId: z.number().int().positive().nullable().optional(),
+  invoiceId: z.preprocess(emptyToNullNumber, z.number().int().positive().nullable().optional()),
   returnedAmount: z.number().positive("Import requerit"),
   returnDate: z.string().min(1, "Data devolució requerida"),
   receiptDate: z.string().nullable().optional(),
@@ -54,8 +55,8 @@ export type ReturnReceiptStatus = (typeof RETURN_RECEIPT_STATUSES)[number];
 export const updateReceiptSchema = z.object({
   status: z.enum(RETURN_RECEIPT_STATUSES).optional(),
   notes: z.string().nullable().optional(),
-  clientId: z.number().int().positive().nullable().optional(),
-  invoiceId: z.number().int().positive().nullable().optional(),
+  clientId: z.preprocess(emptyToNullNumber, z.number().int().positive().nullable().optional()),
+  invoiceId: z.preprocess(emptyToNullNumber, z.number().int().positive().nullable().optional()),
   receiptReference: z.string().nullable().optional(),
   servicePeriod: z.string().nullable().optional(),
   returnReason: z.string().nullable().optional(),

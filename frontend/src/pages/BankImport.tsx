@@ -6,6 +6,8 @@ export default function BankImport() {
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyResult, setNotifyResult] = useState<any>(null);
 
   const handleImportCsv = async () => {
     if (!csvFile) return;
@@ -131,6 +133,41 @@ export default function BankImport() {
               {result.message}
             </p>
           )}
+
+          {/* Botó notificar tots */}
+          <div className="mt-4 bg-white rounded-lg shadow p-4 border border-green-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-sm">Notificar tots els emparellats</h3>
+                <p className="text-xs text-gray-500">Envia WhatsApp a tots els impagats en estat EMPARELLAT amb WhatsApp.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!confirm("Segur que vols notificar tots els impagats emparellats? Es processaran automàticament.")) return;
+                  setNotifying(true);
+                  try {
+                    const res = await api.notifyAllReceipts();
+                    setNotifyResult(res);
+                  } catch (err: any) { alert(err.message); }
+                  setNotifying(false);
+                }}
+                disabled={notifying}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 text-sm whitespace-nowrap"
+              >
+                {notifying ? "Notificant..." : "Notificar tots els emparellats"}
+              </button>
+            </div>
+            {notifyResult && (
+              <div className="mt-3 text-sm space-y-1">
+                <p className="text-green-700">{notifyResult.sent} de {notifyResult.total} enviats ({notifyResult.skipped} saltats)</p>
+                {notifyResult.skippedDetails?.length > 0 && (
+                  <div className="text-xs text-gray-500">
+                    Saltats: {notifyResult.skippedDetails.map((s: any) => `#${s.id} (${s.reason})`).join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

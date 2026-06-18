@@ -92,6 +92,7 @@ export const api = {
   matchReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}/match`, { method: "POST", body: JSON.stringify(data) }),
   sendWhatsApp: (id: number) => request<any>(`/returned-receipts/${id}/send-whatsapp`, { method: "POST" }),
   sendBulkWhatsApp: (receiptIds: number[]) => request<any>("/returned-receipts/send-bulk-whatsapp", { method: "POST", body: JSON.stringify({ receiptIds }) }),
+  notifyAllReceipts: (importBatchId?: number) => request<any>("/returned-receipts/notify-all", { method: "POST", body: JSON.stringify({ importBatchId }) }),
   uploadProof: (id: number, file: File) => {
     const formData = new FormData();
     formData.append("file", file);

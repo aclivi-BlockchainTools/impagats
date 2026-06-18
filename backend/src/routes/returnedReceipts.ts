@@ -385,6 +385,67 @@ router.post("/send-bulk-whatsapp", asyncHandler(async (req: Request, res: Respon
   res.json(result);
 }));
 
+router.post("/notify-all", asyncHandler(async (req: Request, res: Response) => {
+  const { importBatchId } = req.body;
+
+  const where: any = {
+    status: "EMPARELLAT",
+    client: {
+      whatsapp: { not: null },
+      whatsappBlocked: false,
+      baixa: null,
+    },
+  };
+  if (importBatchId) {
+    where.bankMovement = { importBatchId: parseInt(importBatchId) };
+  }
+
+  const receipts = await prisma.returnedReceipt.findMany({
+    where,
+    include: { client: { include: { baixa: true } }, invoice: true, bankMovement: true },
+  });
+
+  const skipped: { id: number; reason: string }[] = [];
+  const queued: number[] = [];
+
+  for (const r of receipts) {
+    if (!r.client?.whatsapp) {
+      skipped.push({ id: r.id, reason: "Sense WhatsApp" });
+      continue;
+    }
+    if (r.client.whatsappBlocked) {
+      skipped.push({ id: r.id, reason: "WhatsApp bloquejat" });
+      continue;
+    }
+    if (r.client.baixa) {
+      skipped.push({ id: r.id, reason: "Client de baixa" });
+      continue;
+    }
+
+    const result = await sendWhatsApp(r.id);
+    if (result.success && result.outboxId) {
+      queued.push(result.outboxId);
+    } else {
+      skipped.push({ id: r.id, reason: result.error || "Error desconegut" });
+    }
+  }
+
+  // Processar els encuats
+  let sent = 0;
+  for (const outboxId of queued) {
+    const r = await processOneMessage(outboxId);
+    if (r.success) sent++;
+  }
+
+  res.json({
+    total: receipts.length,
+    queued: queued.length,
+    sent,
+    skipped: skipped.length,
+    skippedDetails: skipped,
+  });
+}));
+
 router.post("/:id/proof", proofUpload.single("file"), asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) return res.status(400).json({ error: "Fitxer requerit" });
 

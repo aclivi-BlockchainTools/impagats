@@ -573,3 +573,26 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 - Nous camps al response: `countRevisar`, `countPendentRevisio`, `countJustificantRebut`, `countPagamentDeclarat`
 - S'extreuen de l'objecte `counts` del `groupBy` ja existent (no cal query extra)
 
+## Aprenentatges de la sessió 2026-06-18 (part 2)
+
+### Bug emptyToNullNumber — undefined → null
+- `emptyToNullNumber(v)` convertia `undefined` a `null` (`v === "" || v === null || v === undefined ? null : Number(v)`)
+- Quan el frontend envia `{ status: "PAGAMENT_CONFIRMAT" }` (sense `clientId`), Zod passa `undefined` al preprocess → esdevé `null` → Prisma sobreescriu `clientId` a NULL
+- Fix: `(v === "" ? null : v)` — `undefined` passa a Zod `.optional()` que el tracta com a camp absent de l'update
+
+### Plantilles per defecte — doble font
+- `DEFAULT_TEMPLATE`/`DEFAULT_MULTIPLE_TEMPLATE` a `Settings.tsx` han de coincidir amb `TEMPLATE_INITIAL_NOTIFICATION`/`TEMPLATE_MULTIPLE_NOTIFICATION` a `replyTemplates.ts`
+- Si difereixen, el placeholder de Settings no reflecteix el que realment s'envia
+
+### Recàrrec 2€ per devolució
+- Càlcul dinàmic a `notificationService.ts` (sense BD): compta tots els impagats del client, si >1 afegeix 2€ per rebut notificat
+- Noves variables de plantilla: `{{return_fee_per_receipt}}`, `{{return_fee_total}}`, `{{total_with_fee}}`
+- Plantilla editable a Settings amb clau `whatsapp_template_fee_line` (per defecte `TEMPLATE_FEE_LINE` a replyTemplates.ts)
+- Notificació múltiple: cada rebut mostra `+ 2,00 € (despesa devolució)` a la línia
+
+### WorkTray — filtres amb customFilter
+- `TrayFilter` té camp opcional `customFilter: (r: any) => boolean` per subdividir estats sense canviar el backend
+- REVISAR dividit en: `review_nowhatsapp` (sense WhatsApp) i `review_other` (amb WhatsApp)
+- NOTIFICAT dividit en: `notified_replied` (té missatges INBOUND) i `notified_no_response` (sense resposta)
+- S'aplica tant al `useMemo` de filtratge com als comptadors de les píndoles
+

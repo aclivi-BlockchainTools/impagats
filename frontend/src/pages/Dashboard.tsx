@@ -36,13 +36,14 @@ export default function Dashboard() {
   const totalOwed = debtors?.reduce((sum: number, d: any) => sum + d.totalAmount, 0) || 0;
   const debtorCount = debtors?.length || 0;
 
+  const toNotify = (data.countEmparellat || 0) + (data.countWhatsappError || 0);
+  const waiting = (data.notified || 0) + (data.waitingProof || 0) + (data.countPagamentDeclarat || 0);
+  const toReview = (data.countRevisar || 0) + (data.countPendentRevisio || 0) + (data.countJustificantRebut || 0);
+
   const trayActions: TrayAction[] = [
-    { key: "proof_pending", label: "Justificants per revisar", count: (data.countPendentRevisio || 0) + (data.countJustificantRebut || 0), icon: "📎", color: "text-teal-700", border: "border-teal-400" },
-    { key: "review_needed", label: "Requereixen revisió", count: data.countRevisar || 0, icon: "🔍", color: "text-orange-700", border: "border-orange-400" },
-    { key: "payment_claimed", label: "Pagaments declarats", count: data.countPagamentDeclarat || 0, icon: "💬", color: "text-rose-700", border: "border-rose-400" },
-    { key: "waiting_promise", label: "Esperant justificant", count: data.waitingProof || 0, icon: "⏳", color: "text-amber-700", border: "border-amber-400" },
-    { key: "notified_no_response", label: "Notificats sense resposta", count: data.notified, icon: "📤", color: "text-purple-700", border: "border-purple-400" },
-    { key: "whatsapp_error", label: "Errors WhatsApp", count: data.whatsappError || 0, icon: "⚠️", color: "text-red-700", border: "border-red-400" },
+    { key: "to_notify", label: "Per notificar", count: toNotify, icon: "📤", color: "text-blue-700", border: "border-blue-400" },
+    { key: "waiting", label: "Esperant resposta", count: waiting, icon: "⏳", color: "text-purple-700", border: "border-purple-400" },
+    { key: "to_review", label: "Per revisar", count: toReview, icon: "🔍", color: "text-amber-700", border: "border-amber-400" },
   ].filter(a => a.count > 0);
 
   return (
@@ -90,7 +91,7 @@ export default function Dashboard() {
             {trayActions.map((action) => (
               <Link
                 key={action.key}
-                to={`/work-tray?filter=${action.key}`}
+                to={`/work-tray?bucket=${action.key}`}
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${action.border} p-4 hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-center gap-3">

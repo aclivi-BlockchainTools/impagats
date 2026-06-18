@@ -196,6 +196,14 @@ Completat: sí
 
 ## Notes
 
+- 2026-06-17 19:46: Backend: afegit countJustificantRebut. Frontend: Dashboard suma PENDENT_REVISIO + JUSTIFICANT_REBUT. Safata: filtr proof_pending fusionat amb proof_received. Tests OK, build OK.
+- 2026-06-17 19:46: Fusionats els filtres proof_pending i proof_received de la Safata (PENDENT_REVISIO + JUSTIFICANT_REBUT). Afegit countJustificantRebut al dashboard. El Dashboard suma ambdós comptes per "Justificants per revisar". → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 19:39: 3 comptes arreglats: proof_pending → countPendentRevisio, review_needed → countRevisar, payment_claimed → countPagamentDeclarat. Backend 165 test OK, frontend build OK.
+- 2026-06-17 19:39: Arreglada la discrepància de comptes entre Dashboard i Safata. Backend: afegits countRevisar, countPendentRevisio, countPagamentDeclarat al response. Frontend Dashboard: les targetes "Què cal fer ara?" ara usen els comptes individuals que coincideixen exactament amb els filtres de la Safata. → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 19:18: Backend: 165 tests OK (13 suites). Frontend: tsc sense errors + vite build OK. 6 fitxers modificats.
+- 2026-06-17 19:18: Implementades millores visuals i pràctiques: sidebar amb jerarquia i icones, Dashboard simplificat (WorkTray eliminat + accions prioritàries), accions ràpides WhatsApp/Ignorar a la llista, indicadors d'urgència amb colors i temps relatiu. Eliminat WorkTray.tsx redundant. Backend: 165 tests passats. Frontend: build net. → Implementat:sí Verificat:no Completat:no
+- 2026-06-17 19:06: He llegit totes les pàgines i components del frontend per entendre l'UX actual → Implementat:no Verificat:no Completat:no
+- 2026-06-17 19:00: Commit + push: 2 commits (0009f70 feat, 99cfd2c docs). 165 tests pass. → Implementat:sí Verificat:no Completat:no
 - 2026-06-17 18:59: 165 tests pass (13 suites), builds OK. LLM observer tests creats i passant.
 - 2026-06-17 18:58: 165 tests pass (13 suites), backend + frontend builds nets
 - 2026-06-17 15:03: Backend: GET /clients i GET /returned-receipts inclouen baixa del client. Frontend: ClientsList mostra badge "Baixa" vermell, ReturnedReceiptsList i ReceiptInfo mostren etiqueta "Baixa" al costat del nom del client → Implementat:sí Verificat:no Completat:no

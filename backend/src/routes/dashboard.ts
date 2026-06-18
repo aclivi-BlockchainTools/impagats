@@ -44,6 +44,11 @@ router.get("/", asyncHandler(async (_req: Request, res: Response) => {
     waitingProof,
     paymentClaimed,
     whatsappError,
+    // Comptes individuals per fer match exacte amb els filtres de la Safata
+    countRevisar: counts["REVISAR"] || 0,
+    countPendentRevisio: counts["PENDENT_REVISIO"] || 0,
+    countJustificantRebut: counts["JUSTIFICANT_REBUT"] || 0,
+    countPagamentDeclarat: counts["PAGAMENT_DECLARAT"] || 0,
   });
 
 }));

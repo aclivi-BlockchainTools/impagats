@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, formatAmount } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
@@ -15,10 +15,10 @@ interface TrayFilter {
 const TRAY_FILTERS: TrayFilter[] = [
   {
     key: "proof_pending",
-    label: "Justificants pendents de revisar",
-    statuses: ["PENDENT_REVISIO"],
+    label: "Justificants per revisar",
+    statuses: ["PENDENT_REVISIO", "JUSTIFICANT_REBUT"],
     color: "bg-teal-50 border-teal-300",
-    description: "Justificant rebut, pendent de revisió humana",
+    description: "Justificants rebuts (WhatsApp o manual), pendents de revisió",
   },
   {
     key: "payment_claimed",
@@ -26,13 +26,6 @@ const TRAY_FILTERS: TrayFilter[] = [
     statuses: ["PAGAMENT_DECLARAT"],
     color: "bg-rose-50 border-rose-300",
     description: "Client diu que ha pagat, sense justificant",
-  },
-  {
-    key: "proof_received",
-    label: "Justificants rebuts",
-    statuses: ["JUSTIFICANT_REBUT"],
-    color: "bg-green-50 border-green-300",
-    description: "Justificant rebut, potser amb abonament",
   },
   {
     key: "waiting_promise",
@@ -109,7 +102,16 @@ function recommendedAction(status: string): string {
 }
 
 export default function WorkTray() {
-  const [activeFilter, setActiveFilter] = useState<string>("proof_pending");
+  const [searchParams] = useSearchParams();
+  const filterFromUrl = searchParams.get("filter") || "";
+  const [activeFilter, setActiveFilter] = useState<string>(
+    TRAY_FILTERS.some(f => f.key === filterFromUrl) ? filterFromUrl : "proof_pending"
+  );
+  useEffect(() => {
+    if (filterFromUrl && TRAY_FILTERS.some(f => f.key === filterFromUrl)) {
+      setActiveFilter(filterFromUrl);
+    }
+  }, [filterFromUrl]);
   const { data: receiptsData } = useApi(() => api.getReturnedReceipts({ limit: "200" }));
 
   const receipts = receiptsData?.data || [];

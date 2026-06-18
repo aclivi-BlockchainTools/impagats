@@ -13,6 +13,38 @@ function formatDataEmissio(valor: string | undefined): string {
   return valor;
 }
 
+// Dies des d'una data
+function daysSince(date: string | null | undefined): number | null {
+  if (!date) return null;
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Text relatiu
+function relativeTime(dateStr: string | null | undefined): string {
+  const d = daysSince(dateStr);
+  if (d === null) return "";
+  if (d === 0) return "Avui";
+  if (d === 1) return "Ahir";
+  if (d < 7) return `Fa ${d} dies`;
+  if (d < 14) return "Fa 1 setmana";
+  if (d < 30) return `Fa ${Math.floor(d / 7)} setmanes`;
+  if (d < 60) return "Fa 1 mes";
+  return `Fa ${Math.floor(d / 30)} mesos`;
+}
+
+// Urgència: color de border-left
+function urgencyBorder(dateStr: string | null | undefined, status: string): string {
+  if (["TANCAT", "PAGAMENT_CONFIRMAT", "IGNORAT"].includes(status)) return "";
+  const d = daysSince(dateStr);
+  if (d === null) return "";
+  if (d >= 15) return "border-l-4 border-l-red-500";
+  if (d >= 7) return "border-l-4 border-l-amber-500";
+  if (d >= 3) return "border-l-4 border-l-yellow-400";
+  return "";
+}
+
 const CAT_MONTHS: Record<string, number> = {
   "gener": 1, "febrer": 2, "març": 3, "abril": 4,
   "maig": 5, "juny": 6, "juliol": 7, "agost": 8,
@@ -92,6 +124,8 @@ export default function ReturnedReceiptsList() {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [quickFilter, setQuickFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [quickAction, setQuickAction] = useState<number | null>(null); // id de rebut en acció ràpida
   // Debounce search: 300ms
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -105,7 +139,27 @@ export default function ReturnedReceiptsList() {
   const { data: receipts, loading, error, reload } = useApi(() => api.getReturnedReceipts(apiParams));
 
   useEffect(() => { setPage(1); }, [filters, clientIdFromUrl, debouncedSearch]);
-  useEffect(() => { reload(); }, [page, filters, clientIdFromUrl, debouncedSearch]);
+  useEffect(() => { reload(); }, [page, filters, clientIdFromUrl, debouncedSearch, refreshKey]);
+
+  const handleQuickWhatsApp = async (id: number) => {
+    setQuickAction(id);
+    try {
+      const result = await api.sendWhatsApp(id);
+      if (result.success) setRefreshKey(k => k + 1);
+      else alert("Error: " + result.error);
+    } catch (err: any) { alert(err.message); }
+    setQuickAction(null);
+  };
+
+  const handleQuickIgnore = async (id: number) => {
+    if (!confirm("Marcar com a ignorat?")) return;
+    setQuickAction(id);
+    try {
+      await api.updateReturnedReceipt(id, { status: "IGNORAT" });
+      setRefreshKey(k => k + 1);
+    } catch (err: any) { alert(err.message); }
+    setQuickAction(null);
+  };
 
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
@@ -352,9 +406,12 @@ export default function ReturnedReceiptsList() {
           </thead>
           <tbody>
             {filtered.map((r: any) => (
-              <tr key={r.id} className="border-t hover:bg-blue-50/50 transition-colors">
+              <tr key={r.id} className={`border-t hover:bg-blue-50/50 transition-colors ${urgencyBorder(r.returnDate, r.status)}`}>
                 <td className="p-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
-                <td className="p-3 whitespace-nowrap">{new Date(r.returnDate).toLocaleDateString("ca-ES")}</td>
+                <td className="p-3 whitespace-nowrap">
+                  <div>{new Date(r.returnDate).toLocaleDateString("ca-ES")}</div>
+                  <div className="text-[10px] text-gray-400">{relativeTime(r.returnDate)}</div>
+                </td>
                 <td className="p-3 max-w-[160px]">
                   <span className="font-medium truncate block" title={r.client?.name}>
                     {r.client?.name || <span className="text-orange-500">No assignat</span>}
@@ -373,6 +430,26 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3"><StatusBadge status={r.status} /></td>
                 <td className="p-3"><SeguimentBadge status={r.status} /></td>
                 <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                  {["DETECTAT", "EMPARELLAT", "REVISAR", "ERROR_WHATSAPP"].includes(r.status) && r.client?.whatsapp && (
+                    <button
+                      onClick={() => handleQuickWhatsApp(r.id)}
+                      disabled={quickAction === r.id}
+                      className="text-green-600 hover:underline text-xs disabled:opacity-40"
+                      title="Enviar WhatsApp"
+                    >
+                      {quickAction === r.id ? "..." : "WhatsApp"}
+                    </button>
+                  )}
+                  {!["TANCAT", "IGNORAT"].includes(r.status) && (
+                    <button
+                      onClick={() => handleQuickIgnore(r.id)}
+                      disabled={quickAction === r.id}
+                      className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-40"
+                      title="Ignorar (fals positiu)"
+                    >
+                      Ignorar
+                    </button>
+                  )}
                   <Link to={`/receipts/${r.id}`} className="text-blue-600 hover:underline">Detall</Link>
                   <button onClick={() => handleDelete(r.id)} className="text-red-600 hover:underline">Eliminar</button>
                 </td>

@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatsCard from "../components/StatsCard";
-import WorkTray from "../components/WorkTray";
 
 const ACCENT = {
   red:    "border-l-red-400",
@@ -17,10 +16,18 @@ const ACCENT = {
   gray:   "border-l-gray-300",
 };
 
+type TrayAction = {
+  key: string;
+  label: string;
+  count: number;
+  icon: string;
+  color: string;
+  border: string;
+};
+
 export default function Dashboard() {
   const { data, loading, error } = useApi(() => api.getDashboard());
   const { data: debtors } = useApi(() => api.getDashboardDebtors());
-  const { data: receiptsData } = useApi(() => api.getReturnedReceipts({ limit: "100" }));
 
   if (loading) return <div className="text-gray-500">Carregant...</div>;
   if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
@@ -29,51 +36,79 @@ export default function Dashboard() {
   const totalOwed = debtors?.reduce((sum: number, d: any) => sum + d.totalAmount, 0) || 0;
   const debtorCount = debtors?.length || 0;
 
+  const trayActions: TrayAction[] = [
+    { key: "proof_pending", label: "Justificants per revisar", count: (data.countPendentRevisio || 0) + (data.countJustificantRebut || 0), icon: "📎", color: "text-teal-700", border: "border-teal-400" },
+    { key: "review_needed", label: "Requereixen revisió", count: data.countRevisar || 0, icon: "🔍", color: "text-orange-700", border: "border-orange-400" },
+    { key: "payment_claimed", label: "Pagaments declarats", count: data.countPagamentDeclarat || 0, icon: "💬", color: "text-rose-700", border: "border-rose-400" },
+    { key: "waiting_promise", label: "Esperant justificant", count: data.waitingProof || 0, icon: "⏳", color: "text-amber-700", border: "border-amber-400" },
+    { key: "notified_no_response", label: "Notificats sense resposta", count: data.notified, icon: "📤", color: "text-purple-700", border: "border-purple-400" },
+    { key: "whatsapp_error", label: "Errors WhatsApp", count: data.whatsappError || 0, icon: "⚠️", color: "text-red-700", border: "border-red-400" },
+  ].filter(a => a.count > 0);
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       {/* Targetes de mètriques */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-
-        {/* Bloc: Pendents d'acció (taronja/groc) */}
         <StatsCard label="Pendents revisió" value={data.pending}
           subtitle="Requereixen atenció manual"
           icon="🔍" color="bg-orange-50" accent={ACCENT.orange} />
         <StatsCard label="Pagament declarat" value={data.paymentClaimed || 0}
           subtitle="Deutor diu que ha pagat"
           icon="💬" color="bg-rose-50" accent={ACCENT.rose} />
-
-        {/* Bloc: En procés (blau/lila) */}
         <StatsCard label="Notificats" value={data.notified}
           subtitle="WhatsApp enviat"
           icon="📤" color="bg-purple-50" accent={ACCENT.purple} />
         <StatsCard label="Esperant justificant" value={data.waitingProof || 0}
           subtitle="Agent espera resposta"
           icon="⏳" color="bg-indigo-50" accent={ACCENT.indigo} />
-
-        {/* Bloc: Justificants (verd) */}
         <StatsCard label="Justificant rebut" value={data.proofPending}
           subtitle="Pendent de validar"
           icon="📎" color="bg-emerald-50" accent={ACCENT.emerald} />
         <StatsCard label="Tancats / Confirmats" value={data.closed}
           subtitle="Resolts"
           icon="✅" color="bg-green-50" accent={ACCENT.green} />
-
-        {/* Bloc: Problemes (vermell) */}
         <StatsCard label="Error WhatsApp" value={data.whatsappError || 0}
           subtitle="Requereix intervenció"
           icon="⚠️" color="bg-red-50" accent={ACCENT.red} />
-
-        {/* Bloc: Resum financer */}
         <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`}
           subtitle={`${debtorCount} ${debtorCount === 1 ? "deutor" : "deutors"}`}
           icon="💰" color="bg-blue-50" accent={ACCENT.blue} />
       </div>
 
+      {/* Què cal fer ara? — accions prioritàries */}
+      {trayActions.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Què cal fer ara?</h2>
+            <Link to="/work-tray" className="text-sm text-blue-600 hover:underline font-medium">
+              Obrir safata completa →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {trayActions.map((action) => (
+              <Link
+                key={action.key}
+                to={`/work-tray?filter=${action.key}`}
+                className={`bg-white rounded-lg shadow-sm border-l-4 ${action.border} p-4 hover:shadow-md transition-shadow`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{action.icon}</span>
+                  <div>
+                    <div className={`text-2xl font-bold ${action.color}`}>{action.count}</div>
+                    <div className="text-sm text-gray-600">{action.label}</div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Deutors pendents */}
       <h2 className="text-xl font-bold mb-4">Deutors pendents</h2>
-      <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
@@ -114,8 +149,6 @@ export default function Dashboard() {
           </tbody>
         </table>
       </div>
-
-      <WorkTray receipts={receiptsData?.data || []} />
     </div>
   );
 }

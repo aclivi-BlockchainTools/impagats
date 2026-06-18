@@ -69,12 +69,28 @@ L'agent classifica, no conversa. Intents:
 
 - Els missatges WhatsApp **no s'envien directament** des dels endpoints.
 - S'encuen a la taula `WhatsappOutbox` amb estat `PENDING`.
-- Un worker (`POST /api/outbox/process`) processa els pendents:
-  - Comprova que OpenWA està ready
+- El **scheduler** automàtic (cada 5 min) o `POST /api/outbox/process` processa els pendents:
   - Envia d'un en un amb delay aleatori 8-20 segons
-  - Reintenta fins a 3 vegades
+  - Reintenta fins a 3 vegades amb backoff exponencial (2, 4, 8 minuts)
   - Si falla 3 cops → `FAILED` + el rebut passa a `ERROR_WHATSAPP`
   - No envia si el rebut està `TANCAT` o `PAGAMENT_CONFIRMAT`
+
+## Scheduler automàtic
+
+El scheduler (`backend/src/services/scheduler.ts`) s'executa cada 5 minuts (configurable) i processa 4 blocs:
+
+1. **Outbox**: processa missatges PENDING amb `scheduledAt <= now`
+2. **Promeses vençudes**: PaymentPromise amb `promisedDate < now` → `BROKEN`, rebut a `REVISAR`
+3. **Timeout agent**: rebuts en `ESPERANT_JUSTIFICANT`/`PAGAMENT_DECLARAT` >48h → `REVISAR`
+4. **Recordatoris**: rebuts `NOTIFICAT` sense resposta, cada 4 dies, màx. 2 cops
+
+Configuració via AppSettings (amb fallback a env): `scheduler_enabled`, `agent_timeout_hours` (48), `reminder_interval_days` (4), `reminder_max` (2).
+Tick manual: `POST /api/scheduler/run`.
+
+## Notificar tots post-import
+
+Després d'importar CSV/XML, el botó "Notificar tots els emparellats" encua WhatsApp a tots els rebuts en `EMPARELLAT` amb WhatsApp (no bloquejats ni de baixa).
+Endpoint: `POST /api/returned-receipts/notify-all` amb `importBatchId` opcional.
 
 ## Què passa quan arriba un justificant
 

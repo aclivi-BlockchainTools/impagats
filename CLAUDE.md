@@ -549,3 +549,27 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
   4. `npx prisma db execute --file prisma/migrations/{name}/migration.sql`
   5. `npx prisma generate`
 
+## Aprenentatges de la sessió 2026-06-18
+
+### UI/UX — Sidebar, Dashboard i Safata
+
+- **Sidebar reorganitzada** a `Layout.tsx`: seccions amb etiquetes (Principal/Gestió/Administració), icones emoji i separador per Monitor
+- **Dashboard "Què cal fer ara?"**: targetes amb enllaços directes a `/work-tray?filter=<clau>`. Substitueix l'antic WorkTray incrustat (eliminat)
+- **components/WorkTray.tsx eliminat**: era un duplicat simplificat de pages/WorkTray.tsx. Ara la Safata és la font única de veritat
+- **Safata suporta `?filter=`**: usant `useSearchParams()` + `useEffect` per pre-seleccionar el filtre des d'enllaços externs
+- **Dashboard↔Safata match exacte**: els comptes de les targetes han de coincidir amb els estats del filtre de destinació. El backend retorna comptes individuals (`countRevisar`, `countPendentRevisio`, `countJustificantRebut`, `countPagamentDeclarat`) per evitar desajustos
+- **Fusió filtres proof**: `proof_pending` a la Safata inclou PENDENT_REVISIO (WhatsApp webhook) + JUSTIFICANT_REBUT (manual upload). Són el mateix (justificant rebut) per canals diferents
+- **Filtre `proof_received` eliminat** de la Safata (redundant, fusionat amb `proof_pending`)
+
+### UI/UX — Llista d'impagats
+
+- **Accions ràpides**: botons WhatsApp i Ignorar a cada fila sense obrir el detall. WhatsApp només per estats DETECTAT/EMPARELLAT/REVISAR/ERROR_WHATSAPP amb WhatsApp al client. Ignorar per a tots menys TANCAT/IGNORAT
+- **Indicadors d'urgència**: `border-l-4` acolorit per antiguitat: vermell ≥15d, ambre ≥7d, groc ≥3d
+- **Temps relatiu**: funció `relativeTime()` mostra "Avui", "Ahir", "Fa 3 dies", "Fa 2 setmanes" sota la data
+- **refreshKey**: estat `useState(0)` per forçar recàrrega de dades després d'accions ràpides sense tocar els paràmetres de paginació/filtre
+
+### Backend — Dashboard API
+
+- Nous camps al response: `countRevisar`, `countPendentRevisio`, `countJustificantRebut`, `countPagamentDeclarat`
+- S'extreuen de l'objecte `counts` del `groupBy` ja existent (no cal query extra)
+

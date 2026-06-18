@@ -5,6 +5,6 @@ RUN npm ci
 COPY prisma ./prisma/
 RUN npx prisma generate
 COPY dist ./dist/
-RUN mkdir -p uploads uploads/proofs uploads/webhook
+RUN mkdir -p storage/proofs
 EXPOSE 3001
-CMD ["node", "dist/index.js"]
+ENTRYPOINT ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]

@@ -139,6 +139,34 @@ npm install
 npm run dev          # → localhost:5174
 ```
 
+## Com desplegar amb Docker Compose
+
+Crea un `.env` a l'arrel del projecte:
+
+```env
+# OpenWA (obligatori)
+OPENWA_BASE_URL=http://192.168.0.194:2785
+OPENWA_API_KEY=...
+
+# Auth (obligatori en producció)
+JWT_SECRET=una-clau-secreta-llarga
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD_HASH=$2a$...
+
+# Opcional (té defaults)
+WEBHOOK_SECRET=impagats-webhook-secret
+CORS_ORIGIN=http://192.168.0.177:8080
+```
+
+```bash
+# Desplegar tot
+docker compose up -d
+
+# Els proofs sobreviuen a down/up gràcies al volum storage_data
+docker compose down
+docker compose up -d
+```
+
 ## Com executar tests
 
 ```bash

@@ -10,22 +10,41 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U impagats -d impagats"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DATABASE_URL: "postgresql://impagats:impagats@postgres:5432/impagats"
       PORT: "3001"
+      NODE_ENV: "production"
       OPENWA_BASE_URL: "${OPENWA_BASE_URL:-}"
       OPENWA_API_KEY: "${OPENWA_API_KEY:-}"
+      JWT_SECRET: "${JWT_SECRET:-}"
+      WEBHOOK_SECRET: "${WEBHOOK_SECRET:-impagats-webhook-secret}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:8080}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@example.com}"
+      ADMIN_PASSWORD_HASH: "${ADMIN_PASSWORD_HASH:-}"
+    volumes:
+      - storage_data:/app/storage
+
   frontend:
     build: ./frontend
     ports:
       - "8080:80"
     depends_on:
       - backend
+
 volumes:
   pgdata:
+  storage_data:

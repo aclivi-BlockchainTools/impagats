@@ -4,6 +4,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../lib/config";
+import { logger } from "../lib/logger";
 
 export interface AuthRequest extends Request {
   adminId?: string;
@@ -20,6 +21,9 @@ export function generateToken(adminEmail: string): string {
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   // Permetre sense auth si no hi ha JWT_SECRET configurat
   if (!config.jwtSecret) {
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("⛔ PRODUCCIÓ sense JWT_SECRET definit — l'auth està DESACTIVADA! Defineix JWT_SECRET al .env.");
+    }
     return next();
   }
 

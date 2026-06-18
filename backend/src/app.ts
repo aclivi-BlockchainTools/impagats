@@ -18,6 +18,7 @@ import proofsRouter from "./routes/proofs";
 import reconciliationRouter from "./routes/reconciliation";
 import observerRouter from "./routes/observer";
 import baixesRouter from "./routes/baixes";
+import schedulerRouter from "./routes/scheduler";
 
 const app = express();
 app.use(cors({
@@ -56,6 +57,7 @@ app.use("/api/proofs", authMiddleware, proofsRouter);
 app.use("/api/reconciliation", authMiddleware, reconciliationRouter);
 app.use("/api/observer", authMiddleware, observerRouter);
 app.use("/api/baixes", authMiddleware, baixesRouter);
+app.use("/api/scheduler", authMiddleware, schedulerRouter);
 app.use(errorHandler);
 
 export default app;

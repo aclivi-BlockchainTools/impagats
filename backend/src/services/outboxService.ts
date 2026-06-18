@@ -167,16 +167,18 @@ async function processOne(outboxId: number): Promise<boolean> {
     return true;
   }
 
-  // Tornar a PENDING per reintent
+  // Tornar a PENDING per reintent amb backoff exponencial
+  const backoffMs = Math.pow(2, outbox.attempts) * 60 * 1000; // 2^attempts minuts
   await prisma.whatsappOutbox.update({
     where: { id: outboxId },
     data: {
       status: "PENDING",
       lastError: result.error || "Error desconegut",
+      scheduledAt: new Date(Date.now() + backoffMs),
     },
   });
 
-  logger.warn({ outboxId, attempt: outbox.attempts, error: result.error }, "WhatsApp fallit, es reintentarà");
+  logger.warn({ outboxId, attempt: outbox.attempts, error: result.error, backoffMin: Math.pow(2, outbox.attempts) }, "WhatsApp fallit, es reintentarà amb backoff");
   return false;
 }
 
@@ -200,7 +202,10 @@ export async function processOutbox(): Promise<{ processed: number; sent: number
 
   try {
     const pending = await prisma.whatsappOutbox.findMany({
-      where: { status: "PENDING" },
+      where: {
+        status: "PENDING",
+        scheduledAt: { lte: new Date() },
+      },
       orderBy: { createdAt: "asc" },
       take: 10,
     });

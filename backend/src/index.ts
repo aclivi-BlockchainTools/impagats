@@ -3,9 +3,11 @@ import { config } from "./lib/config";
 import { logger } from "./lib/logger";
 import prisma from "./lib/prisma";
 import { llmObserver } from "./services/llmObserverService";
+import { startScheduler, stopScheduler } from "./services/scheduler";
 
 const server = app.listen(config.port, () => {
   logger.info(`Backend listening on port ${config.port}`);
+  startScheduler();
 });
 
 llmObserver.loadConfig().catch((err) => {
@@ -14,6 +16,7 @@ llmObserver.loadConfig().catch((err) => {
 
 async function shutdown(signal: string) {
   logger.info(`${signal} rebut — tancant servidor i BD...`);
+  stopScheduler();
   server.close();
   await prisma.$disconnect();
   process.exit(0);

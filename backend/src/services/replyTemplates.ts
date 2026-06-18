@@ -198,6 +198,24 @@ Despesa de devolució ({{return_fee_per_receipt}} € per rebut retornat): {{ret
 
 Total amb despeses: {{total_with_fee}} €`;
 
+// --- Recordatori de pagament ---
+export const TEMPLATE_REMINDER = `Hola {{client_name}},
+
+Recordatori: encara no hem rebut el justificant del rebut de {{service_period}} corresponent a la factura {{invoice_number}} per import de {{amount}} €.
+
+Si ja has fet l'abonament, envia'ns si us plau el justificant bancari per aquest mateix WhatsApp.
+
+Gràcies.
+
+---
+
+Recordatorio: todavía no hemos recibido el justificante del recibo de {{service_period}} correspondiente a la factura {{invoice_number}} por importe de {{amount}} €.
+
+Si ya has hecho el pago, envíanos por favor el justificante bancario por este mismo WhatsApp.
+
+Gracias.
+{{company_name}}`;
+
 // --- Funció helper ---
 export function getReplyTemplate(intent: string): string {
   return REPLY_TEMPLATES[intent] || TEMPLATE_UNKNOWN;

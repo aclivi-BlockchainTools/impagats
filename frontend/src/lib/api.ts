@@ -1,4 +1,6 @@
-export function formatAmount(amount: any, decimals = 2): string {
+import type { ReturnedReceipt, Client, Invoice, DashboardData, Paginated } from "./types";
+
+export function formatAmount(amount: string | number, decimals = 2): string {
   const n = typeof amount === "string" ? parseFloat(amount) : amount;
   return (isNaN(n) ? 0 : n).toFixed(decimals);
 }
@@ -37,20 +39,20 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Dashboard
-  getDashboard: () => request<any>("/dashboard"),
+  getDashboard: () => request<DashboardData>("/dashboard"),
 
   // Clients
-  getClients: () => request<any[]>("/clients"),
-  getClient: (id: number) => request<any>(`/clients/${id}`),
-  createClient: (data: any) => request<any>("/clients", { method: "POST", body: JSON.stringify(data) }),
-  updateClient: (id: number, data: any) => request<any>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  getClients: () => request<Client[]>("/clients"),
+  getClient: (id: number) => request<Client>(`/clients/${id}`),
+  createClient: (data: any) => request<Client>("/clients", { method: "POST", body: JSON.stringify(data) }),
+  updateClient: (id: number, data: any) => request<Client>(`/clients/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteClient: (id: number) => request<void>(`/clients/${id}`, { method: "DELETE" }),
 
   // Invoices
-  getInvoices: (clientId?: number) => request<any[]>(`/invoices${clientId ? `?clientId=${clientId}` : ""}`),
-  getInvoice: (id: number) => request<any>(`/invoices/${id}`),
-  createInvoice: (data: any) => request<any>("/invoices", { method: "POST", body: JSON.stringify(data) }),
-  updateInvoice: (id: number, data: any) => request<any>(`/invoices/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  getInvoices: (clientId?: number) => request<Invoice[]>(`/invoices${clientId ? `?clientId=${clientId}` : ""}`),
+  getInvoice: (id: number) => request<Invoice>(`/invoices/${id}`),
+  createInvoice: (data: any) => request<Invoice>("/invoices", { method: "POST", body: JSON.stringify(data) }),
+  updateInvoice: (id: number, data: any) => request<Invoice>(`/invoices/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteInvoice: (id: number) => request<void>(`/invoices/${id}`, { method: "DELETE" }),
 
   // Bank movements
@@ -84,9 +86,9 @@ export const api = {
   // Returned receipts
   getReturnedReceipts: (params?: Record<string, string>) => {
     const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<any>(`/returned-receipts${qs}`);
+    return request<Paginated<ReturnedReceipt> & { uniqueClients: number; pendingAmount: number }>(`/returned-receipts${qs}`);
   },
-  getReturnedReceipt: (id: number) => request<any>(`/returned-receipts/${id}`),
+  getReturnedReceipt: (id: number) => request<ReturnedReceipt>(`/returned-receipts/${id}`),
   createReturnedReceipt: (data: any) => request<any>("/returned-receipts", { method: "POST", body: JSON.stringify(data) }),
   updateReturnedReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   matchReceipt: (id: number, data: any) => request<any>(`/returned-receipts/${id}/match`, { method: "POST", body: JSON.stringify(data) }),

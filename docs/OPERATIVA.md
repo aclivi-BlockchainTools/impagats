@@ -190,7 +190,10 @@ npm run build        # Build Vite + TypeScript
 | Ruta | Auth | Descripció |
 |------|------|-----------|
 | `GET /api/health` | No | Health check |
-| `POST /api/openwa/webhook` | Secret | Webhook OpenWA |
+| `POST /api/openwa/webhook` | Secret (query o header) | Webhook OpenWA |
+
+El webhook accepta el secret per query string (`?secret=...`) o capçalera (`X-Webhook-Secret`).
+La capçalera té preferència. Documenta el secret a OpenWA amb el query string per compatibilitat.
 | `POST /api/auth/login` | No | Login admin |
 | `GET /api/auth/me` | JWT | Verificar token |
 | `/api/clients` | JWT | CRUD clients |

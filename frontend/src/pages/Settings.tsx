@@ -56,6 +56,10 @@ Te informamos que se han devuelto los siguientes recibos:
 Gracias.
 {{company_name}}`;
 
+const DEFAULT_FEE_LINE_TEMPLATE = `Despesa de devolució ({{return_fee_per_receipt}} € per rebut retornat): {{return_fee_total}} €
+
+Total amb despeses: {{total_with_fee}} €`;
+
 export default function Settings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -165,7 +169,7 @@ export default function Settings() {
               value={settings.whatsapp_template || ""}
               onChange={(e) => set("whatsapp_template", e.target.value)}
               placeholder="Hola {{client_name}}, ..." />
-            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{service_period}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{invoice_number}}"}, {"{{amount}}"}, {"{{receipt_reference}}"}, {"{{service_period}}"}, {"{{company_iban}}"}, {"{{company_name}}"}, {"{{return_fee_per_receipt}}"}, {"{{return_fee_total}}"}, {"{{total_with_fee}}"}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
@@ -174,7 +178,17 @@ export default function Settings() {
               value={settings.whatsapp_template_multiple || ""}
               onChange={(e) => set("whatsapp_template_multiple", e.target.value)}
               placeholder="Hola {{client_name}}, ..." />
-            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{receipts_list}}"}, {"{{total_amount}}"}, {"{{company_iban}}"}, {"{{company_name}}"}</p>
+            <p className="text-xs text-gray-500 mt-1">Variables: {"{{client_name}}"}, {"{{receipts_list}}"}, {"{{total_amount}}"}, {"{{company_iban}}"}, {"{{company_name}}"}, {"{{return_fee_per_receipt}}"}, {"{{return_fee_total}}"}, {"{{total_with_fee}}"}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="font-semibold text-lg mb-3">Plantilla despesa devolució</h2>
+            <p className="text-sm text-gray-500 mb-3">S'afegeix al final del missatge quan el client té més d'un impagat i s'aplica el recàrrec de 2€ per rebut.</p>
+            <textarea className="w-full border rounded px-3 py-2 font-mono text-sm h-36"
+              value={settings.whatsapp_template_fee_line || DEFAULT_FEE_LINE_TEMPLATE}
+              onChange={(e) => set("whatsapp_template_fee_line", e.target.value)}
+              placeholder={DEFAULT_FEE_LINE_TEMPLATE} />
+            <p className="text-xs text-gray-500 mt-1">Variables: {"{{return_fee_per_receipt}}"}, {"{{return_fee_total}}"}, {"{{total_with_fee}}"}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">

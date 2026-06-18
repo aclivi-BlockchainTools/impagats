@@ -13,6 +13,9 @@ export interface TemplateVars {
   total_amount?: string;
   receipts_list?: string;
   case_details?: string;
+  return_fee_per_receipt?: string;
+  return_fee_total?: string;
+  total_with_fee?: string;
 }
 
 export function render(template: string, vars: TemplateVars): string {
@@ -28,48 +31,54 @@ export function render(template: string, vars: TemplateVars): string {
 // --- Missatge inicial de notificació ---
 export const TEMPLATE_INITIAL_NOTIFICATION = `Hola {{client_name}},
 
-Som {{company_name}}. T'informem que hi ha una incidència amb el cobrament del rebut corresponent a la factura {{invoice_number}}, per import de {{amount}} €.
+T'informem que s'ha retornat el rebut del període {{service_period}} corresponent a la factura {{invoice_number}} per un import de {{amount}} €.
 
-Si ja has fet l'abonament, envia'ns si us plau el justificant bancari per aquest mateix WhatsApp.
+Per regularitzar la situació, fes una transferència al següent compte:
 
-Aquest canal és automàtic i només serveix per rebre justificants. Per qualsevol dubte sobre factures, imports o serveis, contacta amb nosaltres per les vies habituals.
+🏦 {{company_iban}}
+📋 Factura: {{invoice_number}}
+
+⚠️ IMPORTANT: Si us plau, envia'ns la foto del comprovant de pagament per aquest WhatsApp.
 
 ---
 
-Somos {{company_name}}. Te informamos que hay una incidencia con el cobro del recibo correspondiente a la factura {{invoice_number}}, por importe de {{amount}} €.
+Te informamos que se ha devuelto el recibo del período {{service_period}} correspondiente a la factura {{invoice_number}} por un importe de {{amount}} €.
 
-Si ya has hecho el pago, envíanos por favor el justificante bancario por este mismo WhatsApp.
+Para regularizar la situación, haz una transferencia a la siguiente cuenta:
 
-Este canal es automático y solo sirve para recibir justificantes. Para cualquier duda sobre facturas, importes o servicios, contacta con nosotros por las vías habituales.
+🏦 {{company_iban}}
+📋 Factura: {{invoice_number}}
 
-Gracias.`;
+⚠️ IMPORTANTE: Por favor, envíanos la foto del comprobante de pago por este WhatsApp.
+
+Gracias.
+{{company_name}}`;
 
 // --- Missatge per enviament múltiple ---
 export const TEMPLATE_MULTIPLE_NOTIFICATION = `Hola {{client_name}},
 
-Som {{company_name}}. T'informem que hi ha incidències amb el cobrament dels rebuts següents:
+T'informem que s'han retornat els rebuts següents:
 
 {{receipts_list}}
 
-Import total: {{total_amount}} €
+🏦 {{company_iban}}
+💰 Total a pagar: {{total_amount}} €
 
-Si ja has fet els abonaments, envia'ns si us plau els justificants bancaris per aquest mateix WhatsApp.
-
-Aquest canal és automàtic i només serveix per rebre justificants. Per qualsevol dubte sobre factures, imports o serveis, contacta amb nosaltres per les vies habituals.
+⚠️ IMPORTANT: Si us plau, envia'ns la foto dels comprovants de pagament per aquest WhatsApp.
 
 ---
 
-Somos {{company_name}}. Te informamos que hay incidencias con el cobro de los siguientes recibos:
+Te informamos que se han devuelto los siguientes recibos:
 
 {{receipts_list}}
 
-Importe total: {{total_amount}} €
+🏦 {{company_iban}}
+💰 Total a pagar: {{total_amount}} €
 
-Si ya has hecho los pagos, envíanos por favor los justificantes bancarios por este mismo WhatsApp.
+⚠️ IMPORTANTE: Por favor, envíanos la foto de los comprobantes de pago por este WhatsApp.
 
-Este canal es automático y solo sirve para recibir justificantes. Para cualquier duda sobre facturas, importes o servicios, contacta con nosotros por las vías habituales.
-
-Gracias.`;
+Gracias.
+{{company_name}}`;
 
 // --- greeting_or_identity: Salutació o "qui ets" ---
 export const TEMPLATE_GREETING_OR_IDENTITY = `Hola. Soc l'assistent automàtic de {{company_name}} per gestionar justificants de pagament relacionats amb incidències de cobrament.
@@ -180,6 +189,14 @@ export const REPLY_TEMPLATES: Record<string, string> = {
   audio: TEMPLATE_AUDIO,
   unknown: TEMPLATE_UNKNOWN,
 };
+
+// --- Línia de recàrrec per devolució (quan client té >1 impagat) ---
+// S'afegeix al final de la plantilla de notificació (després del text base)
+export const TEMPLATE_FEE_LINE = `
+
+Despesa de devolució ({{return_fee_per_receipt}} € per rebut retornat): {{return_fee_total}} €
+
+Total amb despeses: {{total_with_fee}} €`;
 
 // --- Funció helper ---
 export function getReplyTemplate(intent: string): string {

@@ -2,7 +2,7 @@ import { z, ZodSchema } from "zod";
 
 // Preprocess: empty string → null per camps opcionals
 const emptyToNull = (v: unknown) => (v === "" ? null : v);
-const emptyToNullNumber = (v: unknown) => (v === "" || v === null || v === undefined ? null : Number(v));
+const emptyToNullNumber = (v: unknown) => (v === "" ? null : v);
 
 // --- Client ---
 export const createClientSchema = z.object({

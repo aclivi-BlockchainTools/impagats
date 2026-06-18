@@ -10,6 +10,7 @@ interface TrayFilter {
   statuses: string[];
   color: string;
   description: string;
+  customFilter?: (r: any) => boolean;
 }
 
 const TRAY_FILTERS: TrayFilter[] = [
@@ -35,11 +36,20 @@ const TRAY_FILTERS: TrayFilter[] = [
     description: "Client ha promès pagar, esperant justificant",
   },
   {
+    key: "notified_replied",
+    label: "Han contestat",
+    statuses: ["NOTIFICAT"],
+    color: "bg-indigo-50 border-indigo-300",
+    description: "WhatsApp enviat, client ha respost",
+    customFilter: (r: any) => (r.messages || []).some((m: any) => m.direction === "INBOUND"),
+  },
+  {
     key: "notified_no_response",
-    label: "Notificats sense resposta",
+    label: "Sense resposta",
     statuses: ["NOTIFICAT"],
     color: "bg-purple-50 border-purple-300",
     description: "WhatsApp enviat, sense resposta del client",
+    customFilter: (r: any) => !(r.messages || []).some((m: any) => m.direction === "INBOUND"),
   },
   {
     key: "whatsapp_error",
@@ -49,11 +59,20 @@ const TRAY_FILTERS: TrayFilter[] = [
     description: "Error enviant WhatsApp",
   },
   {
-    key: "review_needed",
-    label: "Requereixen revisió",
+    key: "review_nowhatsapp",
+    label: "Sense WhatsApp",
+    statuses: ["REVISAR"],
+    color: "bg-yellow-50 border-yellow-300",
+    description: "Clients pendents de revisió sense WhatsApp",
+    customFilter: (r: any) => !r.client?.whatsapp,
+  },
+  {
+    key: "review_other",
+    label: "Altres revisions",
     statuses: ["REVISAR"],
     color: "bg-orange-50 border-orange-300",
-    description: "Queixes, dubtes, possibles errors de telèfon",
+    description: "Match fuzzy, queixes, auto-creats, altres motius",
+    customFilter: (r: any) => !!r.client?.whatsapp,
   },
   {
     key: "confirmed",
@@ -118,7 +137,9 @@ export default function WorkTray() {
 
   const active = TRAY_FILTERS.find((f) => f.key === activeFilter) || TRAY_FILTERS[0];
   const filtered = useMemo(
-    () => receipts.filter((r: any) => active.statuses.includes(r.status)),
+    () => receipts
+      .filter((r: any) => active.statuses.includes(r.status))
+      .filter((r: any) => active.customFilter ? active.customFilter(r) : true),
     [receipts, active]
   );
 
@@ -136,7 +157,9 @@ export default function WorkTray() {
       {/* Píndoles de filtre */}
       <div className="flex flex-wrap gap-2 mb-4">
         {TRAY_FILTERS.map((f) => {
-          const count = receipts.filter((r: any) => f.statuses.includes(r.status)).length;
+          const count = receipts
+            .filter((r: any) => f.statuses.includes(r.status))
+            .filter((r: any) => f.customFilter ? f.customFilter(r) : true).length;
           return (
             <button
               key={f.key}

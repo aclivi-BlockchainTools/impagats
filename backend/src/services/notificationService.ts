@@ -3,7 +3,7 @@
 
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
-import { render, renderInitialNotification, renderMultipleNotification, TemplateVars } from "./replyTemplates";
+import { render, renderInitialNotification, renderMultipleNotification, TEMPLATE_FEE_LINE, TemplateVars } from "./replyTemplates";
 import { enqueueMessage } from "./outboxService";
 
 export async function sendWhatsApp(receiptId: number): Promise<{ success: boolean; error?: string; outboxId?: number }> {
@@ -24,12 +24,24 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
   // Get template and company info from AppSettings
   const settings = await prisma.appSettings.findMany();
   const templateSetting = settings.find((s) => s.key === "whatsapp_template");
+  const feeLineSetting = settings.find((s) => s.key === "whatsapp_template_fee_line");
   const ibanSetting = settings.find((s) => s.key === "company_iban");
   const nameSetting = settings.find((s) => s.key === "company_name");
 
   const template = templateSetting?.value?.trim() || "";
   const companyIban = ibanSetting?.value || "ES00 0000 0000 0000 0000 0000";
   const companyName = nameSetting?.value || "Empresa";
+
+  // Comptar total d'impagats del client (qualsevol estat) per determinar si aplica recàrrec
+  let returnFeeTotal = 0;
+  if (receipt.clientId) {
+    const totalClientReceipts = await prisma.returnedReceipt.count({
+      where: { clientId: receipt.clientId },
+    });
+    if (totalClientReceipts > 1) {
+      returnFeeTotal = 2.0;
+    }
+  }
 
   const vars: TemplateVars = {
     client_name: receipt.client.name,
@@ -39,9 +51,20 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
     service_period: receipt.servicePeriod || "",
     company_iban: companyIban,
     company_name: companyName,
+    ...(returnFeeTotal > 0 && {
+      return_fee_per_receipt: "2,00",
+      return_fee_total: returnFeeTotal.toFixed(2).replace(".", ","),
+      total_with_fee: (Number(receipt.returnedAmount) + returnFeeTotal).toFixed(2).replace(".", ","),
+    }),
   };
 
-  const text = template ? render(template, vars) : renderInitialNotification(vars);
+  let text = template ? render(template, vars) : renderInitialNotification(vars);
+
+  // Afegir línia de recàrrec si aplica
+  if (returnFeeTotal > 0) {
+    const feeTemplate = feeLineSetting?.value?.trim() || TEMPLATE_FEE_LINE;
+    text += "\n" + render(feeTemplate, vars);
+  }
 
   // Encuar a l'outbox en lloc d'enviar directament
   const outboxId = await enqueueMessage({
@@ -92,12 +115,25 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
   const companyIban = ibanSetting?.value || "ES00 0000 0000 0000 0000 0000";
   const companyName = nameSetting?.value || "Empresa";
 
-  const totalAmount = receipts.reduce((sum, r) => sum + Number(r.returnedAmount), 0);
+  // Comptar total d'impagats del client (qualsevol estat) per determinar si aplica recàrrec
+  const totalClientReceipts = await prisma.returnedReceipt.count({
+    where: { clientId: client.id },
+  });
+  const applyFee = totalClientReceipts > 1;
+  const feePerReceipt = applyFee ? 2.0 : 0;
+  const totalFees = feePerReceipt * receipts.length;
+
+  const baseAmount = receipts.reduce((sum, r) => sum + Number(r.returnedAmount), 0);
+  const totalAmount = baseAmount + totalFees;
   const receiptsList = receipts
     .map((r) => {
       const period = r.servicePeriod || "Període desconegut";
       const invoice = r.invoice?.invoiceNumber || r.receiptReference || "N/A";
-      return `📅 ${period} — Factura ${invoice} — ${r.returnedAmount.toString()} €`;
+      const amount = r.returnedAmount.toString();
+      if (applyFee) {
+        return `📅 ${period} — Factura ${invoice} — ${amount} € + 2,00 € (despesa devolució)`;
+      }
+      return `📅 ${period} — Factura ${invoice} — ${amount} €`;
     })
     .join("\n");
 
@@ -107,6 +143,11 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
     total_amount: totalAmount.toFixed(2),
     company_iban: companyIban,
     company_name: companyName,
+    ...(applyFee && {
+      return_fee_total: totalFees.toFixed(2).replace(".", ","),
+      return_fee_per_receipt: "2,00",
+      total_with_fee: totalAmount.toFixed(2).replace(".", ","),
+    }),
   };
 
   const text = template ? render(template, vars) : renderMultipleNotification(vars);

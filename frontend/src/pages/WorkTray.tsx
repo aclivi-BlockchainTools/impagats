@@ -176,10 +176,10 @@ export default function WorkTray() {
     [receipts, bucket]
   );
 
-  // Si hi ha filtres avançats actius, aplicar-los (OR entre ells)
+  // Si hi ha filtres avançats actius, buscar a TOTS els rebuts (ignorar cubell)
   const selectedFilters = ADVANCED_FILTERS.filter((f) => activeFilters.has(f.key));
   const displayFiltered = selectedFilters.length > 0
-    ? bucketFiltered.filter((r: any) =>
+    ? receipts.filter((r: any) =>
         selectedFilters.some((f) =>
           f.statuses.includes(r.status) && (f.customFilter ? f.customFilter(r) : true)
         )

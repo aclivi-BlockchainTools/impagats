@@ -27,7 +27,7 @@ router.get("/", asyncHandler(async (_req: Request, res: Response) => {
   const paymentClaimed = (counts["PAGAMENT_DECLARAT"] || 0) + (counts["PENDENT_REVISIO"] || 0);
   const whatsappError = counts["ERROR_WHATSAPP"] || 0;
 
-  const proofPending = await prisma.paymentProof.count({ where: { status: "RECEIVED" } });
+  const proofPending = (counts["PENDENT_REVISIO"] || 0) + (counts["JUSTIFICANT_REBUT"] || 0);
 
   // Pending amount: sum of non-closed/ignored/confirmed
   const pendingAmount = Object.entries(sums)

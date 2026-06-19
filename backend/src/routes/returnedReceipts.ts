@@ -430,17 +430,10 @@ router.post("/notify-all", asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  // Processar els encuats
-  let sent = 0;
-  for (const outboxId of queued) {
-    const r = await processOneMessage(outboxId);
-    if (r.success) sent++;
-  }
-
+  // Els missatges s'enviaran de forma esglaonada pel scheduler (pacing 8-20s)
   res.json({
     total: receipts.length,
     queued: queued.length,
-    sent,
     skipped: skipped.length,
     skippedDetails: skipped,
   });

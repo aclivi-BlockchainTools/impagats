@@ -160,7 +160,9 @@ export async function schedulerTick(now: Date = new Date()): Promise<{
         },
         messages: { none: { direction: "INBOUND" } },
         OR: [
-          { lastReminderAt: null },
+          // Primer recordatori: esperar X dies des de la notificació
+          { AND: [{ lastReminderAt: null }, { notifiedAt: { lt: reminderAgo } }] },
+          // Recordatoris posteriors: esperar X dies des de l'últim
           { lastReminderAt: { lt: reminderAgo } },
         ],
       },

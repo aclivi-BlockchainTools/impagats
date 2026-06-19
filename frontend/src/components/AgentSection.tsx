@@ -53,8 +53,8 @@ export default function AgentSection({ settings, onChange }: Props) {
             <label className="text-sm font-medium mr-2">Timeout (hores)</label>
             <input
               className="w-20 border rounded px-2 py-1 text-sm"
-              value={settings["agent.timeout_hores"] || "24"}
-              onChange={(e) => on("agent.timeout_hores", e.target.value)}
+              value={settings["agent_timeout_hours"] || settings["agent.timeout_hores"] || "48"}
+              onChange={(e) => on("agent_timeout_hours", e.target.value)}
               type="number" min="1" max="168"
             />
           </div>
@@ -67,6 +67,46 @@ export default function AgentSection({ settings, onChange }: Props) {
               onChange={(e) => on("agent.max_unknown", e.target.value)}
               type="number" min="1" max="10"
             />
+          </div>
+        </div>
+
+        {/* Recordatoris */}
+        <div className="border-t pt-3">
+          <h3 className="text-sm font-semibold mb-2">Recordatoris</h3>
+          <p className="text-xs text-gray-500 mb-2">
+            Quan un client no respon al WhatsApp, el sistema pot enviar recordatoris de forma esglaonada.
+          </p>
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Actius</label>
+              <input
+                type="checkbox"
+                checked={settings["scheduler_enabled"] !== "false"}
+                onChange={(e) => on("scheduler_enabled", e.target.checked ? "true" : "false")}
+                className="h-4 w-4"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mr-2">Dies entre recordatoris</label>
+              <input
+                className="w-16 border rounded px-2 py-1 text-sm"
+                value={settings["reminder_interval_days"] || "4"}
+                onChange={(e) => on("reminder_interval_days", e.target.value)}
+                type="number" min="1" max="30"
+              />
+              <span className="text-xs text-gray-400 ml-1">dies</span>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mr-2">Màxim de recordatoris</label>
+              <input
+                className="w-16 border rounded px-2 py-1 text-sm"
+                value={settings["reminder_max"] || "2"}
+                onChange={(e) => on("reminder_max", e.target.value)}
+                type="number" min="0" max="10"
+              />
+            </div>
           </div>
         </div>
 

@@ -85,6 +85,7 @@ El scheduler (`backend/src/services/scheduler.ts`) s'executa cada 5 minuts (conf
 4. **Recordatoris**: rebuts `NOTIFICAT` sense resposta, cada 4 dies, màx. 2 cops
 
 Configuració via AppSettings (amb fallback a env): `scheduler_enabled`, `agent_timeout_hours` (48), `reminder_interval_days` (4), `reminder_max` (2).
+Configuració accessible des de Settings > Agent WhatsApp > Recordatoris (UI).
 Tick manual: `POST /api/scheduler/run`.
 
 ## Notificar tots post-import

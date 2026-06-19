@@ -260,3 +260,50 @@ Consulta CLAUDE.md per al resum executiu i la informació estructural.
 - NOTIFICAT dividit en: `notified_replied` (té missatges INBOUND) i `notified_no_response` (sense resposta)
 - S'aplica tant al `useMemo` de filtratge com als comptadors de les píndoles
 
+## 2026-06-19 — Webhook, safata i ordenació
+
+### Webhook — filtrat d'ecos i missatges buits
+- `data.fromMe` → ignorar (són ecos dels nostres propis missatges sortints, OpenWA els reenvia)
+- Sense `fromMe`: els missatges sortints disparen el webhook amb `from` = número del client → es processaven com a entrants
+- Missatges sense `text` ni `media` → ignorar (receipts, acks, etc.)
+
+### Outbox — no crea Message duplicat
+- `processOne()` ja NO crea cap registre `Message`
+- Els callers (webhook, notificationService, returnedReceipts) són responsables de crear el `Message`
+- `notificationService`: crea `Message` per a TOTS els rebuts
+
+### OpenWA — error millorat
+- `sendMessage()` captura el cos complet de l'error (JSON o text), no només `.message`
+- Inclou `status`, `statusText` i body al `logger.warn`
+
+### Safata — 5 cubells
+- Per notificar (EMPARELLAT, DETECTAT, ERROR_WHATSAPP)
+- Esperant resposta (NOTIFICAT, ESPERANT_JUSTIFICANT, PAGAMENT_DECLARAT)
+- Per revisar (REVISAR) — amb `reviewReason()`: "Falta WhatsApp", "Sense client", "Timeout agent", "Error agent"
+- Pendent de revisió (PENDENT_REVISIO, JUSTIFICANT_REBUT)
+- Tancat (PAGAMENT_CONFIRMAT, TANCAT, IGNORAT)
+- Files amb resposta del client: vora verda esquerra + icona ↩
+
+### Columnes ordenables
+- Totes les llistes amb ordenació asc/desc per clic a capçalera
+- Component compartit `SortHead.tsx`
+
+### useApi — dades persistents
+- `loading` només mostra pantalla de càrrega si no hi ha dades prèvies (`loading && !data`)
+- Evita que l'input de cerca perdi el focus en escriure
+
+### StatsCard amb enllaços
+- Prop `to` opcional: si es passa, la targeta és un `<Link>` clicable al cubell/filtre corresponent
+
+### Scheduler — recordatoris configurables
+- Claus AppSettings: `scheduler_enabled`, `reminder_interval_days`, `reminder_max`, `agent_timeout_hours`
+- UI de configuració a AgentSection (Settings)
+- `formatReminder(count, lastReminderAt)` reutilitzable
+- Comptador visible a llistes, safata i detall
+- `notify-all` només encua (no processa) — el scheduler drena amb pacing 8-20s
+
+### Bug: primer recordatori immediat
+- Query original: `lastReminderAt: null` encaixava al primer tick
+- Fix: `AND: [{ lastReminderAt: null }, { notifiedAt: { lt: reminderAgo } }]`
+- El primer recordatori espera `reminder_interval_days` des de `notifiedAt`
+

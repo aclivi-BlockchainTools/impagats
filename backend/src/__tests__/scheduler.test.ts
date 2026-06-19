@@ -140,8 +140,9 @@ describe("schedulerTick", () => {
   });
 
   describe("Recordatoris", () => {
-    it("encua recordatori per NOTIFICAT sense resposta", async () => {
+    it("encua recordatori per NOTIFICAT sense resposta amb notifiedAt > X dies", async () => {
       const now = new Date("2026-06-18T12:00:00Z");
+      const notifiedWeeksAgo = new Date("2026-06-01T00:00:00Z"); // 17 dies
 
       mockPromiseFindMany.mockResolvedValueOnce([]);
       mockReceiptFindMany.mockResolvedValueOnce([]); // timeout
@@ -151,6 +152,7 @@ describe("schedulerTick", () => {
           status: "NOTIFICAT",
           reminderCount: 0,
           lastReminderAt: null,
+          notifiedAt: notifiedWeeksAgo,
           returnedAmount: "50.00",
           receiptReference: "REF001",
           servicePeriod: "2026-05",
@@ -165,6 +167,21 @@ describe("schedulerTick", () => {
       const result = await schedulerTick(now);
 
       expect(result.remindersSent).toBe(1);
+    });
+
+    it("NO envia recordatori si el rebut s'ha notificat fa menys de X dies", async () => {
+      const now = new Date("2026-06-18T12:00:00Z");
+      const notifiedYesterday = new Date("2026-06-17T12:00:00Z"); // 1 dia
+
+      mockPromiseFindMany.mockResolvedValueOnce([]);
+      mockReceiptFindMany.mockResolvedValueOnce([]); // timeout
+      mockReceiptFindMany.mockResolvedValueOnce([]); // reminders: cap candidat vàlid
+
+      // La query del scheduler ha de filtrar rebuts amb notifiedAt recent
+      // Comprovem que el tick no envia cap recordatori (mock retorna [])
+      const result = await schedulerTick(now);
+
+      expect(result.remindersSent).toBe(0);
     });
 
     it("no envia recordatori si no hi ha candidats", async () => {

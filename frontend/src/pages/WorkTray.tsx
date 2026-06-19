@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api, formatAmount } from "../lib/api";
+import { api, formatAmount, formatReminder } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 import SortHead from "../components/SortHead";
 
@@ -337,6 +337,9 @@ export default function WorkTray() {
                           {daysNotified}d
                         </span>
                       ) : "-"}
+                      {formatReminder(r.reminderCount, r.lastReminderAt) && (
+                        <div className="text-[10px] text-amber-600 mt-0.5">{formatReminder(r.reminderCount, r.lastReminderAt)}</div>
+                      )}
                     </td>
                     <td className="p-3 text-xs max-w-[120px] truncate" title={lastInbound?.content}>
                       {lastInbound?.content ? (

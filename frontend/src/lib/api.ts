@@ -5,6 +5,18 @@ export function formatAmount(amount: string | number, decimals = 2): string {
   return (isNaN(n) ? 0 : n).toFixed(decimals);
 }
 
+export function formatReminder(count: number, lastReminderAt: string | null | undefined): string | null {
+  if (!count || count <= 0) return null;
+  const parts = [`🔔 ${count}`];
+  if (lastReminderAt) {
+    const d = new Date(lastReminderAt);
+    if (!isNaN(d.getTime())) {
+      parts.push(` · últim ${d.toLocaleDateString("ca-ES")}`);
+    }
+  }
+  return parts.join("");
+}
+
 const BASE = "/api";
 
 function getToken(): string | null {

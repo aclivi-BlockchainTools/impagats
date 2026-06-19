@@ -1,6 +1,6 @@
 import { useState } from "react";
 import StatusBadge from "./StatusBadge";
-import { api, formatAmount } from "../lib/api";
+import { api, formatAmount, formatReminder } from "../lib/api";
 
 // Traducció de motius bancaris
 function translateReturnReason(reason: string | null | undefined): string {
@@ -153,6 +153,12 @@ export default function ReceiptInfo({ receipt, clients, invoices, onReload }: Pr
           <div>
             <span className="text-xs text-gray-500">Data emissió rebut</span>
             <div className="text-sm">{receipt.bankMovement.rawData.Valor}</div>
+          </div>
+        )}
+        {receipt.reminderCount > 0 && (
+          <div>
+            <span className="text-xs text-gray-500">Recordatoris enviats</span>
+            <div className="text-sm text-amber-700 font-medium">{formatReminder(receipt.reminderCount, receipt.lastReminderAt)}</div>
           </div>
         )}
       </div>

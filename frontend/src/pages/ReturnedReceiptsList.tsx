@@ -4,7 +4,7 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
 import SortHead from "../components/SortHead";
-import { formatAmount } from "../lib/api";
+import { formatAmount, formatReminder } from "../lib/api";
 
 function formatDataEmissio(valor: string | undefined): string {
   if (!valor) return "-";
@@ -428,7 +428,12 @@ export default function ReturnedReceiptsList() {
                 <td className="p-3 text-sm">{formatDataEmissio(r.bankMovement?.rawData?.Valor)}</td>
                 <td className="p-3 text-right font-semibold whitespace-nowrap">{formatAmount(r.returnedAmount)} €</td>
                 <td className="p-3"><StatusBadge status={r.status} /></td>
-                <td className="p-3"><SeguimentBadge status={r.status} /></td>
+                <td className="p-3">
+                  <SeguimentBadge status={r.status} />
+                  {formatReminder(r.reminderCount, r.lastReminderAt) && (
+                    <div className="text-[10px] text-amber-600 mt-0.5">{formatReminder(r.reminderCount, r.lastReminderAt)}</div>
+                  )}
+                </td>
                 <td className="p-3 text-right space-x-2 whitespace-nowrap">
                   {["DETECTAT", "EMPARELLAT", "REVISAR", "ERROR_WHATSAPP"].includes(r.status) && r.client?.whatsapp && (
                     <button

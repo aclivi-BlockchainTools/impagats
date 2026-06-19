@@ -143,7 +143,7 @@ export default function BankImport() {
               </div>
               <button
                 onClick={async () => {
-                  if (!confirm("Segur que vols notificar tots els impagats emparellats? Es processaran automàticament.")) return;
+                  if (!confirm("Segur que vols notificar tots els impagats emparellats? S'encuaran i s'enviaran de forma esglaonada en segon pla.")) return;
                   setNotifying(true);
                   try {
                     const res = await api.notifyAllReceipts();
@@ -159,7 +159,7 @@ export default function BankImport() {
             </div>
             {notifyResult && (
               <div className="mt-3 text-sm space-y-1">
-                <p className="text-green-700">{notifyResult.sent} de {notifyResult.total} enviats ({notifyResult.skipped} saltats)</p>
+                <p className="text-green-700">{notifyResult.queued} de {notifyResult.total} encuats ({notifyResult.skipped} saltats) · S'enviaran esglaonadament</p>
                 {notifyResult.skippedDetails?.length > 0 && (
                   <div className="text-xs text-gray-500">
                     Saltats: {notifyResult.skippedDetails.map((s: any) => `#${s.id} (${s.reason})`).join(", ")}

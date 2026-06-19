@@ -22,12 +22,16 @@ Clients amb més d'un impagat (històric complet) tenen recàrrec de 2€ per ca
 
 ## Estat
 
-Implementat: sí
-Verificat: sí
+Implementat: no
+Verificat: no
 Completat: no
 
 ## Notes
 
+- 2026-06-18 16:35: 5 tasques completades: docker-compose (fix), scheduler (feat), notify-all (feat), manteniment (chore), Safata 4 cubells (feat) → Implementat:no Verificat:no Completat:no
+- 2026-06-18 16:26: Creat scheduler.ts amb 4 blocs (outbox retry amb backoff, promeses vençudes, timeout agent, recordatoris). Modificat outboxService per backoff. Migració reminderCount/lastReminderAt. Endpoint POST /api/scheduler/run. Plantilla TEMPLATE_REMINDER. 7 tests nous. → Implementat:sí Verificat:no Completat:no
+- 2026-06-18 16:20: TASCA 1: docker-compose amb volum storage_data, env vars ${VAR:-}, healthcheck postgres, prisma migrate deploy al Dockerfile, advertència JWT_SECRET en prod, .env.example i OPERATIVA.md actualitzats → Implementat:sí Verificat:no Completat:no
+- 2026-06-18 14:33: Commit + push: 7 fitxers (recàrrec 2€, plantilles alineades, filtres WorkTray, bugfix clientId) → Implementat:sí Verificat:no Completat:no
 - 2026-06-18 14:33: Verificat: 165 tests pass, backend tsc OK, frontend tsc OK
 - 2026-06-18 14:25: Arreglat bug: emptyToNullNumber(undefined) convertia a null, fent que canviar l'estat d'un impagat desvinculés el client. Ara undefined passa per Zod .optional() correctament (camp absent de l'update). → Implementat:sí Verificat:no Completat:no
 - 2026-06-18 14:13: Dividit filtres REVISAR i NOTIFICAT a WorkTray: review_nowhatsapp (sense WhatsApp), review_other (altres), notified_replied (han contestat), notified_no_response (sense resposta). Afegit camp customFilter al TrayFilter. → Implementat:sí Verificat:no Completat:no

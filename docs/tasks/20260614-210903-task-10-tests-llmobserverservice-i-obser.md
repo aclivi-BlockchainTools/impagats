@@ -191,11 +191,15 @@ Aquest és el camí més simple: tests unitaris clars, sense complexitat extra, 
 ## Estat
 
 Implementat: sí
-Verificat: sí
-Completat: sí
+Verificat: no
+Completat: no
 
 ## Notes
 
+- 2026-06-18 11:50: Implementat recàrrec de devolució: replyTemplates.ts (noves variables + TEMPLATE_FEE_LINE), notificationService.ts (càlcul dinàmic a sendWhatsApp i sendBulkWhatsApp), Settings.tsx (documentació de variables) → Implementat:sí Verificat:no Completat:no
+- 2026-06-18 11:24: Commit i push de CLAUDE.md amb aprenentatges sessió 2026-06-18 (sidebar, dashboard, accions ràpides, urgència visual, merging filtres Safata, dashboard API individual counts) → Implementat:sí Verificat:no Completat:no
+- 2026-06-18 11:24: CLAUDE.md actualitzat amb aprenentatges sessió 2026-06-18. Backend 165 tests OK, frontend build OK.
+- 2026-06-18 11:22: Commit 08b37a6 i push a master. Sidebar jeràrquica, Dashboard simplificat, accions ràpides WhatsApp/Ignorar, urgència visual (border-l acolorit, temps relatiu), comptes exactes Dashboard↔Safata, fusió filtres proof_pending+proof_received. → Implementat:sí Verificat:no Completat:no
 - 2026-06-17 19:46: Backend: afegit countJustificantRebut. Frontend: Dashboard suma PENDENT_REVISIO + JUSTIFICANT_REBUT. Safata: filtr proof_pending fusionat amb proof_received. Tests OK, build OK.
 - 2026-06-17 19:46: Fusionats els filtres proof_pending i proof_received de la Safata (PENDENT_REVISIO + JUSTIFICANT_REBUT). Afegit countJustificantRebut al dashboard. El Dashboard suma ambdós comptes per "Justificants per revisar". → Implementat:sí Verificat:no Completat:no
 - 2026-06-17 19:39: 3 comptes arreglats: proof_pending → countPendentRevisio, review_needed → countRevisar, payment_claimed → countPagamentDeclarat. Backend 165 test OK, frontend build OK.

@@ -338,7 +338,38 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 
 ## Tests i build
 
-- Backend: `cd backend && npm test` (112 tests, 10 suites), `npm run build` (tsc)
+- Backend: `cd backend && npm test` (172 tests, 14 suites), `npm run build` (tsc)
 - Frontend: `cd frontend && npm run build` (tsc + vite)
+
+## Scheduler
+
+- `scheduler.ts`: setInterval amb 4 blocs independents (outbox retry, promeses vençudes, timeout agent, recordatoris)
+- Arrenca des d'`index.ts` (no des d'`app.ts` per no afectar tests)
+- Tick manual: `POST /api/scheduler/run`
+- Config via AppSettings: `scheduler_enabled`, `agent_timeout_hours` (48), `reminder_interval_days` (4), `reminder_max` (2)
+- Recordatoris: plantilla `whatsapp_template_reminder` (AppSettings), camps `reminderCount`/`lastReminderAt` al model
+- Backoff exponencial a l'outbox: `scheduledAt = now + 2^attempts min`
+
+## Docker Compose
+
+- Volum `storage_data` per `/app/storage` (proofs sobreviuen a down/up)
+- Healthcheck postgres + `depends_on condition: service_healthy` al backend
+- `prisma migrate deploy` a l'ENTRYPOINT del Dockerfile
+- Env vars amb `${VAR:-}`: JWT_SECRET, WEBHOOK_SECRET, CORS_ORIGIN, ADMIN_*, OPENWA_*
+- Auth middleware loga warning si NODE_ENV=production i JWT_SECRET no definit
+
+## Safata — 4 cubells
+
+- Vista principal: Per notificar, Esperant resposta, Per revisar, Tancat
+- Filtres avançats amb toggle per granularitat
+- Dashboard enllaça via `?bucket=`
+- `TrayFilter.customFilter` per subdividir estats (ex: REVISAR amb/sense WhatsApp)
+
+## Nous endpoints
+
+| Ruta | Descripció |
+|------|-----------|
+| `POST /api/scheduler/run` | Disparar tick manual del scheduler |
+| `POST /api/returned-receipts/notify-all` | Notificar tots els EMPARELLAT |
 
 

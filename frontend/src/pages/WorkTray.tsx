@@ -141,7 +141,7 @@ export default function WorkTray() {
   const [activeBucket, setActiveBucket] = useState<string>(
     BUCKETS.some(b => b.key === bucketFromUrl) ? bucketFromUrl : "to_notify"
   );
-  const [activeFilter, setActiveFilter] = useState<string>("");
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [sortKey, setSortKey] = useState<string>("returnDate");
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
@@ -160,7 +160,7 @@ export default function WorkTray() {
   useEffect(() => {
     if (filterFromUrl) {
       setShowAdvanced(true);
-      setActiveFilter(filterFromUrl);
+      setActiveFilters(new Set([filterFromUrl]));
     }
   }, [filterFromUrl]);
 
@@ -176,12 +176,14 @@ export default function WorkTray() {
     [receipts, bucket]
   );
 
-  // Si hi ha filtre avançat actiu, aplicar-lo
-  const advanced = ADVANCED_FILTERS.find((f) => f.key === activeFilter);
-  const displayFiltered = advanced
-    ? bucketFiltered
-      .filter((r: any) => advanced.statuses.includes(r.status))
-      .filter((r: any) => advanced.customFilter ? advanced.customFilter(r) : true)
+  // Si hi ha filtres avançats actius, aplicar-los (OR entre ells)
+  const selectedFilters = ADVANCED_FILTERS.filter((f) => activeFilters.has(f.key));
+  const displayFiltered = selectedFilters.length > 0
+    ? bucketFiltered.filter((r: any) =>
+        selectedFilters.some((f) =>
+          f.statuses.includes(r.status) && (f.customFilter ? f.customFilter(r) : true)
+        )
+      )
     : bucketFiltered;
 
   // Ordenar resultat filtrat
@@ -227,7 +229,7 @@ export default function WorkTray() {
         {bucketCounts.map((b) => (
           <button
             key={b.key}
-            onClick={() => { setActiveBucket(b.key); setActiveFilter(""); }}
+            onClick={() => { setActiveBucket(b.key); setActiveFilters(new Set()); }}
             className={`rounded-lg border ${b.borderColor} ${b.color} p-4 text-left transition-all hover:shadow-md
               ${activeBucket === b.key ? "ring-2 ring-blue-400 shadow-md" : ""}`}
           >
@@ -257,16 +259,20 @@ export default function WorkTray() {
             return (
               <button
                 key={f.key}
-                onClick={() => setActiveFilter(activeFilter === f.key ? "" : f.key)}
+                onClick={() => {
+                  const next = new Set(activeFilters);
+                  next.has(f.key) ? next.delete(f.key) : next.add(f.key);
+                  setActiveFilters(next);
+                }}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
-                  ${activeFilter === f.key
+                  ${activeFilters.has(f.key)
                     ? "bg-blue-600 text-white border-blue-600"
                     : "bg-white text-gray-700 border-gray-200 hover:border-blue-300"
                   }`}
               >
                 {f.label}
                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs
-                  ${activeFilter === f.key ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                  ${activeFilters.has(f.key) ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
                 >
                   {count}
                 </span>
@@ -280,7 +286,7 @@ export default function WorkTray() {
       <div className="bg-white rounded-lg shadow p-3 mb-4">
         <div className="flex flex-wrap gap-4 text-sm">
           <span className="text-gray-500">
-            {advanced ? advanced.label : bucket.label}:{" "}
+            {selectedFilters.length > 0 ? selectedFilters.map(f => f.label).join(" + ") : bucket.label}:{" "}
             <span className="font-semibold text-gray-800">{sorted.length}</span>
           </span>
           <span className="text-gray-500">

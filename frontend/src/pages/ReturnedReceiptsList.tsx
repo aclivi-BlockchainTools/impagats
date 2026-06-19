@@ -123,7 +123,7 @@ export default function ReturnedReceiptsList() {
   const [sending, setSending] = useState(false);
   const [sortKey, setSortKey] = useState<string>("returnDate");
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
-  const [quickFilter, setQuickFilter] = useState<string>("");
+  const [quickFilters, setQuickFilters] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
   const [quickAction, setQuickAction] = useState<number | null>(null); // id de rebut en acció ràpida
@@ -165,10 +165,12 @@ export default function ReturnedReceiptsList() {
   const filtered = useMemo(() => {
     if (!receipts?.data) return [];
     let list = receipts.data;
-    // Quick filter (client-side: filtre visual per estat, sempre sobre dades ja filtrades pel servidor)
-    if (quickFilter) {
-      const qf = QUICK_FILTERS.find(f => f.key === quickFilter);
-      if (qf) list = list.filter((r: any) => qf.statuses.includes(r.status));
+    // Quick filters (client-side: multi-selecció amb OR)
+    if (quickFilters.size > 0) {
+      const selected = QUICK_FILTERS.filter(f => quickFilters.has(f.key));
+      if (selected.length > 0) {
+        list = list.filter((r: any) => selected.some(f => f.statuses.includes(r.status)));
+      }
     }
     // Sort
     return [...list].sort((a: any, b: any) => {
@@ -191,7 +193,7 @@ export default function ReturnedReceiptsList() {
       if (va > vb) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [receipts, sortKey, sortDir, quickFilter]);
+  }, [receipts, sortKey, sortDir, quickFilters]);
 
   // Resum de dades visibles
   const totalVisible = filtered.length;
@@ -300,16 +302,21 @@ export default function ReturnedReceiptsList() {
             <button
               key={qf.key}
               onClick={() => {
-                if (quickFilter === qf.key) {
-                  setQuickFilter("");
-                  setFilters(({ status, ...rest }) => rest);
+                const next = new Set(quickFilters);
+                if (next.has(qf.key)) {
+                  next.delete(qf.key);
                 } else {
-                  setQuickFilter(qf.key);
-                  setFilters(f => ({ ...f, status: qf.statuses.join(",") }));
+                  next.add(qf.key);
                 }
+                setQuickFilters(next);
+                // Actualitzar filtre d'estat del servidor amb OR de tots els statuses seleccionats
+                const allStatuses = [...new Set(
+                  QUICK_FILTERS.filter(f => next.has(f.key)).flatMap(f => f.statuses)
+                )];
+                setFilters(f => allStatuses.length > 0 ? { ...f, status: allStatuses.join(",") } : Object.fromEntries(Object.entries(f).filter(([k]) => k !== "status")));
               }}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
-                ${quickFilter === qf.key ? qf.activeColor : qf.color + " hover:border-gray-300"}`}
+                ${quickFilters.has(qf.key) ? qf.activeColor : qf.color + " hover:border-gray-300"}`}
             >
               {qf.label}
             </button>
@@ -460,7 +467,7 @@ export default function ReturnedReceiptsList() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search || quickFilter ? "Cap coincidència" : "Cap impagat"}</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={11} className="p-3 text-center text-gray-500">{search || quickFilters.size > 0 ? "Cap coincidència" : "Cap impagat"}</td></tr>}
             {receipts && receipts.total > receipts.limit && (
               <tr><td colSpan={11} className="p-3 text-right text-sm text-gray-500">
                 Pàgina {receipts.page} de {Math.ceil(receipts.total / receipts.limit)}

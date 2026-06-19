@@ -216,6 +216,16 @@ Si ya has hecho el pago, envíanos por favor el justificante bancario por este m
 Gracias.
 {{company_name}}`;
 
+// --- Filtre per idioma ---
+// Les plantilles bilingües usen "\n---\n" com a separador (català a dalt, castellà a baix).
+// Si no hi ha separador, es retorna el text sencer (plantilla monolingüe).
+export function filterByLanguage(text: string, language: string | null | undefined): string {
+  if (!language) return text; // sense preferència → bilingüe
+  const parts = text.split("\n---\n");
+  if (parts.length < 2) return text; // monolingüe → retornar tal qual
+  return language === "ca" ? parts[0] : parts[1];
+}
+
 // --- Funció helper ---
 export function getReplyTemplate(intent: string): string {
   return REPLY_TEMPLATES[intent] || TEMPLATE_UNKNOWN;

@@ -9,6 +9,7 @@ export interface Client {
   whatsappBlocked: boolean;
   email: string | null;
   externalRef: string | null;
+  language: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;

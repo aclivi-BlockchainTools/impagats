@@ -61,7 +61,7 @@ export default function ClientForm() {
   const isEdit = !!id;
 
   const [form, setForm] = useState({
-    name: "", poble: "", phone: "", whatsapp: "", email: "", externalRef: "", active: true,
+    name: "", poble: "", phone: "", whatsapp: "", email: "", externalRef: "", language: "", active: true,
   });
 
   // Carregar dades del client + rebuts + factures quan s'edita
@@ -77,7 +77,7 @@ export default function ClientForm() {
       api.getClient(parseInt(id!)).then((c) => setForm({
         name: c.name || "", poble: c.poble || "", phone: c.phone || "",
         whatsapp: c.whatsapp || "", email: c.email || "",
-        externalRef: c.externalRef || "", active: c.active ?? true,
+        externalRef: c.externalRef || "", language: c.language || "", active: c.active ?? true,
       }));
     }
   }, [id]);
@@ -125,6 +125,15 @@ export default function ClientForm() {
             <div>
               <label className="block text-sm font-medium mb-1">Referència externa</label>
               <input className="w-full border rounded px-3 py-2" value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Idioma preferit</label>
+              <select className="w-full border rounded px-3 py-2" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+                <option value="">Català i castellà (per defecte)</option>
+                <option value="ca">Només català</option>
+                <option value="es">Només castellà</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Les plantilles de WhatsApp s'enviaran només en l'idioma seleccionat.</p>
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="active" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />

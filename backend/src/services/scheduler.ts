@@ -7,7 +7,7 @@ import { logger } from "../lib/logger";
 import { processOutbox } from "./outboxService";
 import { enqueueMessage } from "./outboxService";
 import { recordStatusChange } from "./statusHistory";
-import { render, TEMPLATE_REMINDER, TemplateVars } from "./replyTemplates";
+import { render, filterByLanguage, TEMPLATE_REMINDER, TemplateVars } from "./replyTemplates";
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -188,7 +188,7 @@ export async function schedulerTick(now: Date = new Date()): Promise<{
         company_name: companyName,
       };
 
-      const text = render(template, vars);
+      const text = filterByLanguage(render(template, vars), r.client?.language);
 
       await enqueueMessage({
         receiptId: r.id,

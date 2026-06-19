@@ -12,6 +12,7 @@ export const createClientSchema = z.object({
   whatsapp: z.preprocess(emptyToNull, z.string().nullable().optional()),
   email: z.preprocess(emptyToNull, z.string().email("Email invàlid").nullable().optional()),
   externalRef: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  language: z.preprocess(emptyToNull, z.enum(["ca", "es"]).nullable().optional()),
   active: z.boolean().optional(),
 });
 

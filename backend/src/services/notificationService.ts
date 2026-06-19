@@ -3,7 +3,7 @@
 
 import prisma from "../lib/prisma";
 import { auditLog } from "../middleware/auditLog";
-import { render, renderInitialNotification, renderMultipleNotification, TEMPLATE_FEE_LINE, TemplateVars } from "./replyTemplates";
+import { render, renderInitialNotification, renderMultipleNotification, filterByLanguage, TEMPLATE_FEE_LINE, TemplateVars } from "./replyTemplates";
 import { enqueueMessage } from "./outboxService";
 
 export async function sendWhatsApp(receiptId: number): Promise<{ success: boolean; error?: string; outboxId?: number }> {
@@ -65,6 +65,9 @@ export async function sendWhatsApp(receiptId: number): Promise<{ success: boolea
     const feeTemplate = feeLineSetting?.value?.trim() || TEMPLATE_FEE_LINE;
     text += "\n" + render(feeTemplate, vars);
   }
+
+  // Filtrar per idioma del client (si no en té, s'envia bilingüe)
+  text = filterByLanguage(text, receipt.client.language);
 
   // Encuar a l'outbox en lloc d'enviar directament
   const outboxId = await enqueueMessage({
@@ -150,7 +153,8 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
     }),
   };
 
-  const text = template ? render(template, vars) : renderMultipleNotification(vars);
+  const rawText = template ? render(template, vars) : renderMultipleNotification(vars);
+  const text = filterByLanguage(rawText, client.language);
 
   // Encuar un sol missatge per tots els rebuts del mateix client
   const firstReceiptId = receipts[0].id;

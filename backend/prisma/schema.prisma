@@ -16,6 +16,7 @@ model Client {
   whatsappBlocked Boolean   @default(false)
   email           String?
   externalRef     String?
+  language        String?
   active          Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

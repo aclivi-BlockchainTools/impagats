@@ -23,11 +23,13 @@ Clients amb més d'un impagat (històric complet) tenen recàrrec de 2€ per ca
 ## Estat
 
 Implementat: sí
-Verificat: sí
-Completat: sí
+Verificat: no
+Completat: no
 
 ## Notes
 
+- 2026-06-19 15:30: T1: notify-all només encua, resposta {total, queued, skipped, skippedDetails}. T2: query recordatoris arreglada (primer mira notifiedAt). T3: UI recordatoris a Settings, unificat agent_timeout_hours, formatReminder() a llistes/safata/detall, test scheduler (173 tests). T4: CLAUDE.md compacte 128 línies, detalls a DECISIONS.md. → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 14:45: Commit d9a1ffb amb tots els canvis del dia (18 fitxers). Push a origin/master OK. CLAUDE.md actualitzat amb noves seccions: webhook fromMe, outbox no duplicat, OpenWA error, safata 5 cubells, columnes ordenables, useApi persistent, StatsCard enllaços. → Implementat:no Verificat:no Completat:no
 - 2026-06-19 14:44: 172 tests OK, build frontend + backend nets
 - 2026-06-19 09:33: Safata reorganitzada de 4 a 5 cubells: "Per revisar" (REVISAR, color ambre) separat de "Pendent de revisió" (PENDENT_REVISIO+JUSTIFICANT_REBUT, color rosa). Funció reviewReason() mostra el motiu específic (Falta WhatsApp, Sense client, Timeout agent, Error agent, Revisió pendent). Filtres avançats reorganitzats. Dashboard actualitzat amb el nou cubell. → Implementat:sí Verificat:no Completat:no
 - 2026-06-19 09:20: Substituïda la targeta genèrica "Pendents revisió" (que barrejava DETECTAT+EMPARELLAT+REVISAR) per 3 targetes separades: "Per processar" (blau, DETECTAT+EMPARELLAT), "Revisar" (taronja, REVISAR), "Pendent de revisió" (rosa, PENDENT_REVISIO). Cada una amb icona i color diferents. → Implementat:sí Verificat:no Completat:no

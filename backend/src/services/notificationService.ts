@@ -130,13 +130,13 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
   const totalAmount = baseAmount + totalFees;
   const receiptsList = receipts
     .map((r) => {
-      const period = r.servicePeriod || "Període desconegut";
+      const period = r.servicePeriod ? `📅 ${r.servicePeriod} — ` : "";
       const invoice = r.invoice?.invoiceNumber || r.receiptReference || "N/A";
       const amount = r.returnedAmount.toString();
       if (applyFee) {
-        return `📅 ${period} — Factura ${invoice} — ${amount} € + 2,00 € (despesa devolució)`;
+        return `${period}Factura ${invoice} — ${amount} € + 2,00 € (despesa devolució)`;
       }
-      return `📅 ${period} — Factura ${invoice} — ${amount} €`;
+      return `${period}Factura ${invoice} — ${amount} €`;
     })
     .join("\n");
 

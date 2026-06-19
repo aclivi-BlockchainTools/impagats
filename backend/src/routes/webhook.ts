@@ -197,6 +197,16 @@ router.post("/", asyncHandler(async (req: Request, res: Response) => {
   const text = data.body || data.message || data.text || "";
   const media = data.media || null;
 
+  // Ignorar missatges sortints (ecos de les nostres pròpies respostes)
+  if (data.fromMe) {
+    return res.status(200).json({ status: "ignored", reason: "outgoing_echo" });
+  }
+
+  // Ignorar missatges sense text ni media (receipts, acks, etc.)
+  if (!text && !media) {
+    return res.status(200).json({ status: "ignored", reason: "empty_message" });
+  }
+
   if (!from) {
     logger.warn({ rawFrom, author, keys: Object.keys(data) }, "Webhook: sense remitent");
     return res.status(200).json({ status: "ignored", reason: "no_sender" });

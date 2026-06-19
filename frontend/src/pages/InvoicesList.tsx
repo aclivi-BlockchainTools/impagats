@@ -2,21 +2,45 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, formatAmount } from "../lib/api";
+import SortHead from "../components/SortHead";
 
 export default function InvoicesList() {
   const { data: invoices, loading, error, reload } = useApi(() => api.getInvoices());
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sortKey, setSortKey] = useState<string>("date");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   const filtered = useMemo(() => {
     if (!invoices) return [];
-    if (!search.trim()) return invoices;
-    const q = search.toLowerCase();
-    return invoices.filter((inv: any) =>
-      inv.invoiceNumber.toLowerCase().includes(q) ||
-      (inv.client?.name && inv.client.name.toLowerCase().includes(q))
-    );
-  }, [invoices, search]);
+    let list = invoices;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = invoices.filter((inv: any) =>
+        inv.invoiceNumber.toLowerCase().includes(q) ||
+        (inv.client?.name && inv.client.name.toLowerCase().includes(q))
+      );
+    }
+    return [...list].sort((a: any, b: any) => {
+      let va: any, vb: any;
+      switch (sortKey) {
+        case "invoiceNumber": va = a.invoiceNumber.toLowerCase(); vb = b.invoiceNumber.toLowerCase(); break;
+        case "client": va = (a.client?.name || "").toLowerCase(); vb = (b.client?.name || "").toLowerCase(); break;
+        case "date": va = new Date(a.date).getTime(); vb = new Date(b.date).getTime(); break;
+        case "amount": va = parseFloat(a.amount || "0"); vb = parseFloat(b.amount || "0"); break;
+        case "status": va = a.status; vb = b.status; break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [invoices, search, sortKey, sortDir]);
 
   const toggle = (id: number) => {
     const next = new Set(selected);
@@ -43,8 +67,8 @@ export default function InvoicesList() {
     reload();
   };
 
-  if (loading) return <div className="text-gray-500">Carregant...</div>;
-  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
+  if (loading && !invoices) return <div className="text-gray-500">Carregant...</div>;
+  if (error && !invoices) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>
@@ -67,11 +91,11 @@ export default function InvoicesList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
-              <th className="text-left p-3">Núm. Factura</th>
-              <th className="text-left p-3">Client</th>
-              <th className="text-left p-3">Data</th>
-              <th className="text-right p-3">Import</th>
-              <th className="text-left p-3">Estat</th>
+              <SortHead col="invoiceNumber" label="Núm. Factura" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="client" label="Client" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="date" label="Data" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="amount" label="Import" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="right" />
+              <SortHead col="status" label="Estat" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <th className="text-right p-3">Accions</th>
             </tr>
           </thead>

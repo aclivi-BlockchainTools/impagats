@@ -2,23 +2,50 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
+import SortHead from "../components/SortHead";
 
 export default function ClientsList() {
   const { data: clients, loading, error, reload } = useApi(() => api.getClients());
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [sortKey, setSortKey] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   const filtered = useMemo(() => {
     if (!clients) return [];
-    if (!search.trim()) return clients;
-    const q = search.toLowerCase();
-    return clients.filter((c: any) =>
-      c.name.toLowerCase().includes(q) ||
-      (c.poble && c.poble.toLowerCase().includes(q)) ||
-      (c.whatsapp && c.whatsapp.includes(q)) ||
-      (c.email && c.email.toLowerCase().includes(q))
-    );
-  }, [clients, search]);
+    let list = clients;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = clients.filter((c: any) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.poble && c.poble.toLowerCase().includes(q)) ||
+        (c.whatsapp && c.whatsapp.includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q))
+      );
+    }
+    return [...list].sort((a: any, b: any) => {
+      let va: any, vb: any;
+      switch (sortKey) {
+        case "name": va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
+        case "poble": va = (a.poble || "").toLowerCase(); vb = (b.poble || "").toLowerCase(); break;
+        case "whatsapp": va = a.whatsapp || ""; vb = b.whatsapp || ""; break;
+        case "email": va = (a.email || "").toLowerCase(); vb = (b.email || "").toLowerCase(); break;
+        case "status":
+          va = a.baixa ? 0 : a.active ? 1 : 2;
+          vb = b.baixa ? 0 : b.active ? 1 : 2;
+          break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [clients, search, sortKey, sortDir]);
 
   const toggle = (id: number) => {
     const next = new Set(selected);
@@ -45,8 +72,8 @@ export default function ClientsList() {
     reload();
   };
 
-  if (loading) return <div className="text-gray-500">Carregant...</div>;
-  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
+  if (loading && !clients) return <div className="text-gray-500">Carregant...</div>;
+  if (error && !clients) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>
@@ -69,11 +96,11 @@ export default function ClientsList() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
-              <th className="text-left p-3">Nom</th>
-              <th className="text-left p-3">Poble</th>
-              <th className="text-left p-3">WhatsApp</th>
-              <th className="text-left p-3">Email</th>
-              <th className="text-left p-3">Estat</th>
+              <SortHead col="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="poble" label="Poble" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="whatsapp" label="WhatsApp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="email" label="Email" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="status" label="Estat" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <th className="text-right p-3">Accions</th>
             </tr>
           </thead>

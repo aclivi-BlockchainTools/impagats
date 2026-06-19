@@ -99,17 +99,6 @@ async function processOne(outboxId: number): Promise<boolean> {
       data: { status: "SENT", sentAt: new Date() },
     });
 
-    // Guardar el missatge sortint al historial
-    await prisma.message.create({
-      data: {
-        receiptId: outbox.receiptId,
-        direction: "OUTBOUND",
-        content: outbox.message,
-        status: "sent",
-        externalId: result.externalId,
-      },
-    });
-
     // Actualitzar rebut a NOTIFICAT si cal
     const receipt = await prisma.returnedReceipt.findUnique({
       where: { id: outbox.receiptId },

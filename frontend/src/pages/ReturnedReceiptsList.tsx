@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
+import SortHead from "../components/SortHead";
 import { formatAmount } from "../lib/api";
 
 function formatDataEmissio(valor: string | undefined): string {
@@ -178,8 +179,12 @@ export default function ReturnedReceiptsList() {
         case "reference": va = a.receiptReference || ""; vb = b.receiptReference || ""; break;
         case "returnReason": va = a.returnReason || ""; vb = b.returnReason || ""; break;
         case "servicePeriod": va = periodToSort(a.servicePeriod); vb = periodToSort(b.servicePeriod); break;
-        case "amount": va = a.returnedAmount; vb = b.returnedAmount; break;
+        case "amount": va = parseFloat(a.returnedAmount || "0"); vb = parseFloat(b.returnedAmount || "0"); break;
         case "status": va = a.status; vb = b.status; break;
+        case "dataEmissio":
+          va = a.bankMovement?.rawData?.Valor || a.bankMovement?.rawData?.valor || a.returnDate;
+          vb = b.bankMovement?.rawData?.Valor || b.bankMovement?.rawData?.valor || b.returnDate;
+          break;
         default: return 0;
       }
       if (va < vb) return sortDir === "asc" ? -1 : 1;
@@ -198,18 +203,6 @@ export default function ReturnedReceiptsList() {
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
   };
-
-  const SortHead = ({ col, label }: { col: string; label: string }) => (
-    <th className="text-left p-3 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort(col)}>
-      {label} {sortKey === col ? (sortDir === "asc" ? "▲" : "▼") : ""}
-    </th>
-  );
-
-  const SortHeadRight = ({ col, label }: { col: string; label: string }) => (
-    <th className="text-right p-3 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort(col)}>
-      {label} {sortKey === col ? (sortDir === "asc" ? "▲" : "▼") : ""}
-    </th>
-  );
 
   const toggle = (id: number) => {
     const next = new Set(selected);
@@ -270,8 +263,8 @@ export default function ReturnedReceiptsList() {
     setSending(false);
   };
 
-  if (loading) return <div className="text-gray-500">Carregant...</div>;
-  if (error) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
+  if (loading && !receipts) return <div className="text-gray-500">Carregant...</div>;
+  if (error && !receipts) return <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm">Error: {error}</div>;
 
   return (
     <div>
@@ -386,21 +379,28 @@ export default function ReturnedReceiptsList() {
         </div>
       </div>
 
+      {/* Indicador de càrrega subtil */}
+      {loading && receipts && (
+        <div className="bg-blue-50 border border-blue-200 rounded px-3 py-1.5 mb-2 text-xs text-blue-600">
+          Actualitzant...
+        </div>
+      )}
+
       {/* Taula */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left p-3 w-8"><input type="checkbox" checked={selected.size === totalVisible && totalVisible > 0} onChange={toggleAll} /></th>
-              <SortHead col="returnDate" label="Data devolució" />
-              <SortHead col="client" label="Client" />
-              <th className="text-left p-3">Factura</th>
-              <SortHead col="returnReason" label="Motiu devolució" />
-              <SortHead col="servicePeriod" label="Període" />
-              <th className="text-left p-3">Data emissió</th>
-              <SortHeadRight col="amount" label="Import" />
-              <SortHead col="status" label="Estat" />
-              <th className="text-left p-3">Seguiment</th>
+              <SortHead col="returnDate" label="Data devolució" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="client" label="Client" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="reference" label="Factura" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="returnReason" label="Motiu devolució" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="servicePeriod" label="Període" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="dataEmissio" label="Data emissió" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="amount" label="Import" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="right" />
+              <SortHead col="status" label="Estat" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortHead col="status" label="Seguiment" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <th className="text-right p-3">Accions</th>
             </tr>
           </thead>

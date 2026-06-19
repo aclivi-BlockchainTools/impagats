@@ -3,13 +3,13 @@ import { api } from "../lib/api";
 interface Proof {
   id: number;
   receiptId: number;
-  mimeType: string;
-  sizeBytes: number;
-  sha256: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  sha256: string | null;
   storagePath: string;
   status: string;
   receivedAt: string;
-  originalName?: string;
+  originalName: string | null;
 }
 
 function formatSize(bytes: number): string {
@@ -49,7 +49,7 @@ export default function ProofViewer({ proofs }: Props) {
           <div key={p.id} className="border rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50">
             {/* Miniatura o icona */}
             <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
-              {isImage(p.mimeType) ? (
+              {isImage(p.mimeType ?? "") ? (
                 <img
                   src={`/api/proofs/${p.id}/file`}
                   alt="Miniatura"
@@ -57,7 +57,7 @@ export default function ProofViewer({ proofs }: Props) {
                   loading="lazy"
                 />
               ) : (
-                <span>{getIcon(p.mimeType)}</span>
+                <span>{getIcon(p.mimeType ?? "")}</span>
               )}
             </div>
 
@@ -67,7 +67,7 @@ export default function ProofViewer({ proofs }: Props) {
                 {p.originalName || `Justificant #${p.id}`}
               </div>
               <div className="text-xs text-gray-500">
-                {p.mimeType} · {formatSize(p.sizeBytes)} · {new Date(p.receivedAt).toLocaleString("ca-ES")}
+                {p.mimeType ?? "?"} · {formatSize(p.sizeBytes ?? 0)} · {new Date(p.receivedAt).toLocaleString("ca-ES")}
               </div>
             </div>
 
@@ -79,7 +79,7 @@ export default function ProofViewer({ proofs }: Props) {
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
               >
-                {isImage(p.mimeType) ? "Veure" : "Obrir"}
+                {isImage(p.mimeType ?? "") ? "Veure" : "Obrir"}
               </a>
             </div>
           </div>

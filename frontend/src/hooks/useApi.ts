@@ -6,6 +6,7 @@ export function useApi<T>(fetcher: () => Promise<T>) {
   const [error, setError] = useState<string | null>(null);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+  const initialLoadDone = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -13,6 +14,7 @@ export function useApi<T>(fetcher: () => Promise<T>) {
     try {
       const result = await fetcherRef.current();
       setData(result);
+      initialLoadDone.current = true;
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -22,5 +24,5 @@ export function useApi<T>(fetcher: () => Promise<T>) {
 
   useEffect(() => { load(); }, [load]);
 
-  return { data, loading, error, reload: load };
+  return { data, loading, error, reload: load, initialLoadDone };
 }

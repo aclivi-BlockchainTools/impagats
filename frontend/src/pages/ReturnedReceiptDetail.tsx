@@ -38,12 +38,13 @@ export default function ReturnedReceiptDetail() {
 
   // Determinar última acció
   const lastAction = (() => {
-    if (receipt.messages?.length > 0) {
-      const lastMsg = receipt.messages[receipt.messages.length - 1];
+    const msgs = receipt.messages;
+    if (msgs && msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
       if (lastMsg.direction === "OUTBOUND") return "WhatsApp enviat";
       if (lastMsg.direction === "INBOUND") return "Resposta rebuda";
     }
-    if (receipt.proofs?.length > 0) return "Justificant rebut";
+    if ((receipt.proofs?.length ?? 0) > 0) return "Justificant rebut";
     return null;
   })();
 
@@ -103,8 +104,8 @@ export default function ReturnedReceiptDetail() {
         {/* Columna esquerra: informació, conversa i justificants */}
         <div className="lg:col-span-2 space-y-6">
           <ReceiptInfo receipt={receipt} clients={clients || []} invoices={invoices || []} onReload={reload} />
-          <ConversationView messages={receipt.messages} />
-          <ProofViewer proofs={receipt.proofs} />
+          <ConversationView messages={receipt.messages || []} />
+          <ProofViewer proofs={receipt.proofs || []} />
         </div>
 
         {/* Columna dreta: accions, notes i historial */}

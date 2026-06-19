@@ -1,5 +1,6 @@
 import { config } from "../lib/config";
 import prisma from "../lib/prisma";
+import { logger } from "../lib/logger";
 
 export interface OpenWAConfig {
   baseUrl: string;
@@ -46,8 +47,17 @@ export class OpenWAConnector {
       });
 
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        return { success: false, error: (errBody as any).message || `HTTP ${res.status}` };
+        const resText = await res.text().catch(() => "");
+        let errDetail = "";
+        try {
+          const errJson = JSON.parse(resText);
+          // OpenWA pot retornar error a .message, .error, .statusMessage o al cos complet
+          errDetail = errJson.message || errJson.error || errJson.statusMessage || JSON.stringify(errJson);
+        } catch {
+          errDetail = resText || `HTTP ${res.status} ${res.statusText}`;
+        }
+        logger.warn({ chatId, status: res.status, statusText: res.statusText, body: resText?.substring(0, 500) }, "OpenWA sendMessage error");
+        return { success: false, error: errDetail };
       }
 
       const data = await res.json() as any;

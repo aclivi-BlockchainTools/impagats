@@ -1,15 +1,18 @@
+import { Link } from "react-router-dom";
+
 interface Props {
   label: string;
   value: string | number;
   subtitle?: string;
   icon?: string;
-  color?: string;       // bg color class
-  accent?: string;       // left border accent color
+  color?: string;
+  accent?: string;
+  to?: string;
 }
 
-export default function StatsCard({ label, value, subtitle, icon, color = "bg-white", accent }: Props) {
-  return (
-    <div className={`${color} rounded-lg shadow p-4 ${accent ? `border-l-4 ${accent}` : ""}`}>
+export default function StatsCard({ label, value, subtitle, icon, color = "bg-white", accent, to }: Props) {
+  const card = (
+    <div className={`${color} rounded-lg shadow p-4 ${accent ? `border-l-4 ${accent}` : ""} ${to ? "hover:shadow-md transition-shadow cursor-pointer" : ""}`}>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</div>
@@ -20,4 +23,7 @@ export default function StatsCard({ label, value, subtitle, icon, color = "bg-wh
       </div>
     </div>
   );
+
+  if (to) return <Link to={to}>{card}</Link>;
+  return card;
 }

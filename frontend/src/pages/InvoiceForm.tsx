@@ -17,9 +17,13 @@ export default function InvoiceForm() {
   useEffect(() => {
     if (isEdit) {
       api.getInvoice(parseInt(id!)).then((inv) => setForm({
-        ...inv,
+        clientId: inv.clientId,
+        invoiceNumber: inv.invoiceNumber,
         date: inv.date.slice(0, 10),
         dueDate: inv.dueDate ? inv.dueDate.slice(0, 10) : "",
+        amount: Number(inv.amount),
+        status: inv.status,
+        externalRef: inv.externalRef || "",
       }));
     }
   }, [id]);

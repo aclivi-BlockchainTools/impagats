@@ -155,16 +155,22 @@ export interface CaseNote {
 }
 
 export interface DashboardData {
-  counts: Record<string, number>;
-  totalPendingAmount: number;
-  uniqueClients: number;
-  totalReceipts: number;
-  byStatus: Array<{ status: string; count: number }>;
+  total: number;
+  pending: number;
+  notified: number;
+  proofPending: number;
+  closed: number;
+  pendingAmount: number;
+  waitingProof: number;
+  paymentClaimed: number;
+  whatsappError: number;
+  countEmparellat: number;
+  countDETECTAT: number;
   countRevisar: number;
   countPendentRevisio: number;
   countJustificantRebut: number;
   countPagamentDeclarat: number;
-  recentActivity: ReturnedReceipt[];
+  countWhatsappError: number;
 }
 
 export interface Paginated<T> {

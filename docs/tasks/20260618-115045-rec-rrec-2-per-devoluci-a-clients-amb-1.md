@@ -22,12 +22,19 @@ Clients amb més d'un impagat (històric complet) tenen recàrrec de 2€ per ca
 
 ## Estat
 
-Implementat: no
-Verificat: no
-Completat: no
+Implementat: sí
+Verificat: sí
+Completat: sí
 
 ## Notes
 
+- 2026-06-19 14:44: 172 tests OK, build frontend + backend nets
+- 2026-06-19 09:33: Safata reorganitzada de 4 a 5 cubells: "Per revisar" (REVISAR, color ambre) separat de "Pendent de revisió" (PENDENT_REVISIO+JUSTIFICANT_REBUT, color rosa). Funció reviewReason() mostra el motiu específic (Falta WhatsApp, Sense client, Timeout agent, Error agent, Revisió pendent). Filtres avançats reorganitzats. Dashboard actualitzat amb el nou cubell. → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 09:20: Substituïda la targeta genèrica "Pendents revisió" (que barrejava DETECTAT+EMPARELLAT+REVISAR) per 3 targetes separades: "Per processar" (blau, DETECTAT+EMPARELLAT), "Revisar" (taronja, REVISAR), "Pendent de revisió" (rosa, PENDENT_REVISIO). Cada una amb icona i color diferents. → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 09:17: Afegits a WorkTray.tsx: funció hasClientReplied(), 2 filtres avançats nous (review_replied/review_no_response), vora verda esquerra + icona ↩ en files amb resposta del client dins del cubell "Per revisar" → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 08:59: 3 causes arrel corregides: 1) fromMe check al webhook (ignora ecos de missatges sortints), 2) es salten missatges sense text ni media, 3) eliminada la creació duplicada de Message a outboxService.processOne. notificationService actualitzat per crear Message del primer rebut. 2 duplicats esborrats de la BD. → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 08:35: 1) Corregits tots els errors TypeScript: opcional chaining a ReturnedReceiptDetail.tsx, tipus ProofViewer.tsx, DashboardData a types.ts, form a InvoiceForm.tsx. Build frontend net. 2) CLAUDE.md actualitzat: 18 entitats, 172 tests/14 suites, port 2886, ESPERANT_DETALLS→ESPERANT_JUSTIFICANT. 3) Tasca Recàrrec 2€ marcada completada (ja implementada a f5e4216). → Implementat:sí Verificat:no Completat:no
+- 2026-06-19 08:35: Implementat al commit f5e4216 (fix: recàrrec 2€ per devolució, plantilles alineades, filtres WorkTray i bug clientId). El codi a notificationService.ts inclou la lògica de recàrrec de 2€ per clients amb >1 impagat.
 - 2026-06-18 16:35: 5 tasques completades: docker-compose (fix), scheduler (feat), notify-all (feat), manteniment (chore), Safata 4 cubells (feat) → Implementat:no Verificat:no Completat:no
 - 2026-06-18 16:26: Creat scheduler.ts amb 4 blocs (outbox retry amb backoff, promeses vençudes, timeout agent, recordatoris). Modificat outboxService per backoff. Migració reminderCount/lastReminderAt. Endpoint POST /api/scheduler/run. Plantilla TEMPLATE_REMINDER. 7 tests nous. → Implementat:sí Verificat:no Completat:no
 - 2026-06-18 16:20: TASCA 1: docker-compose amb volum storage_data, env vars ${VAR:-}, healthcheck postgres, prisma migrate deploy al Dockerfile, advertència JWT_SECRET en prod, .env.example i OPERATIVA.md actualitzats → Implementat:sí Verificat:no Completat:no

@@ -166,19 +166,16 @@ export async function sendBulkWhatsApp(receiptIds: number[]): Promise<{ success:
   }
 
   // Actualitzar TOTS els rebuts a NOTIFICAT i crear missatges per tots
-  // (processOneMessage només ho farà pel primer)
   for (const r of receipts) {
-    // Crear registre de missatge per cada rebut (menys el primer, que ho farà processOneMessage)
-    if (r.id !== firstReceiptId) {
-      await prisma.message.create({
-        data: {
-          receiptId: r.id,
-          direction: "OUTBOUND",
-          content: text,
-          status: "sent",
-        },
-      });
-    }
+    // Crear registre de missatge per cada rebut
+    await prisma.message.create({
+      data: {
+        receiptId: r.id,
+        direction: "OUTBOUND",
+        content: text,
+        status: "sent",
+      },
+    });
 
     // Actualitzar estat a NOTIFICAT si cal
     if (["DETECTAT", "EMPARELLAT", "REVISAR"].includes(r.status)) {

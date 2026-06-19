@@ -3,8 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, formatAmount } from "../lib/api";
 import StatusBadge from "../components/StatusBadge";
+import SortHead from "../components/SortHead";
 
-// --- 4 cubells d'acció principals ---
+// --- 5 cubells d'acció principals ---
 interface ActionBucket {
   key: string;
   label: string;
@@ -36,10 +37,18 @@ const BUCKETS: ActionBucket[] = [
   {
     key: "to_review",
     label: "Per revisar",
-    statuses: ["REVISAR", "PENDENT_REVISIO", "JUSTIFICANT_REBUT"],
+    statuses: ["REVISAR"],
     color: "bg-amber-50",
     borderColor: "border-amber-300",
-    action: "Revisar justificant / cas",
+    action: "Completar dades del client",
+  },
+  {
+    key: "proof_review",
+    label: "Pendent de revisió",
+    statuses: ["PENDENT_REVISIO", "JUSTIFICANT_REBUT"],
+    color: "bg-rose-50",
+    borderColor: "border-rose-300",
+    action: "Validar justificant",
   },
   {
     key: "closed",
@@ -71,14 +80,20 @@ const ADVANCED_FILTERS: TrayFilter[] = [
     key: "notified_no_response", label: "Sense resposta", statuses: ["NOTIFICAT"],
     customFilter: (r) => !(r.messages || []).some((m: any) => m.direction === "INBOUND"),
   },
+  { key: "review_replied", label: "Han contestat", statuses: ["PENDENT_REVISIO", "JUSTIFICANT_REBUT"], customFilter: hasClientReplied },
+  { key: "review_no_response", label: "Sense resposta", statuses: ["PENDENT_REVISIO", "JUSTIFICANT_REBUT"], customFilter: (r) => !hasClientReplied(r) },
   { key: "whatsapp_error", label: "Errors WhatsApp", statuses: ["ERROR_WHATSAPP"] },
   {
-    key: "review_nowhatsapp", label: "Sense WhatsApp", statuses: ["REVISAR"],
+    key: "review_nowhatsapp", label: "Falta WhatsApp", statuses: ["REVISAR"],
     customFilter: (r) => !r.client?.whatsapp,
   },
   {
-    key: "review_other", label: "Altres revisions", statuses: ["REVISAR"],
-    customFilter: (r) => !!r.client?.whatsapp,
+    key: "review_noclient", label: "Sense client", statuses: ["REVISAR"],
+    customFilter: (r) => !r.client?.name,
+  },
+  {
+    key: "review_other", label: "Altres motius", statuses: ["REVISAR"],
+    customFilter: (r) => !!r.client?.whatsapp && !!r.client?.name,
   },
   { key: "confirmed", label: "Pagaments confirmats", statuses: ["PAGAMENT_CONFIRMAT"] },
   { key: "closed_sep", label: "Tancats", statuses: ["TANCAT"] },
@@ -92,7 +107,19 @@ function daysSince(date: string | null | undefined): number | null {
   return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function recommendedAction(status: string): string {
+function hasClientReplied(r: any): boolean {
+  return (r.messages || []).some((m: any) => m.direction === "INBOUND");
+}
+
+function reviewReason(r: any): string {
+  if (!r.client?.whatsapp) return "Falta WhatsApp";
+  if (!r.client?.name) return "Sense client";
+  if (r.notes?.includes("Timeout agent")) return "Timeout agent";
+  if (r.notes?.includes("Agent error")) return "Error agent";
+  return "Revisió pendent";
+}
+
+function recommendedAction(status: string, r?: any): string {
   const actions: Record<string, string> = {
     PENDENT_REVISIO: "Revisar justificant",
     PAGAMENT_DECLARAT: "Demanar justificant",
@@ -100,9 +127,9 @@ function recommendedAction(status: string): string {
     ESPERANT_JUSTIFICANT: "Verificar promesa",
     NOTIFICAT: "Fer seguiment",
     ERROR_WHATSAPP: "Reenviar WhatsApp",
-    REVISAR: "Revisar cas",
     PAGAMENT_CONFIRMAT: "Tancar cas",
   };
+  if (status === "REVISAR" && r) return reviewReason(r);
   return actions[status] || "Obrir cas";
 }
 
@@ -116,6 +143,13 @@ export default function WorkTray() {
   );
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [sortKey, setSortKey] = useState<string>("returnDate");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   useEffect(() => {
     if (bucketFromUrl && BUCKETS.some(b => b.key === bucketFromUrl)) {
@@ -150,6 +184,28 @@ export default function WorkTray() {
       .filter((r: any) => advanced.customFilter ? advanced.customFilter(r) : true)
     : bucketFiltered;
 
+  // Ordenar resultat filtrat
+  const sorted = useMemo(() => {
+    return [...displayFiltered].sort((a: any, b: any) => {
+      let va: any, vb: any;
+      switch (sortKey) {
+        case "id": va = a.id; vb = b.id; break;
+        case "client": va = (a.client?.name || "").toLowerCase(); vb = (b.client?.name || "").toLowerCase(); break;
+        case "servicePeriod": va = a.servicePeriod || ""; vb = b.servicePeriod || ""; break;
+        case "amount": va = parseFloat(a.returnedAmount || "0"); vb = parseFloat(b.returnedAmount || "0"); break;
+        case "returnDate": va = new Date(a.returnDate).getTime(); vb = new Date(b.returnDate).getTime(); break;
+        case "daysNotified": va = daysSince(a.notifiedAt) ?? -1; vb = daysSince(b.notifiedAt) ?? -1; break;
+        case "lastResponse": va = a.messages?.filter((m: any) => m.direction === "INBOUND").slice(-1)[0]?.content || ""; vb = b.messages?.filter((m: any) => m.direction === "INBOUND").slice(-1)[0]?.content || ""; break;
+        case "status": va = a.status; vb = b.status; break;
+        case "action": va = recommendedAction(a.status, a).toLowerCase(); vb = recommendedAction(b.status, b).toLowerCase(); break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [displayFiltered, sortKey, sortDir]);
+
   const bucketCounts = BUCKETS.map((b) => ({
     ...b,
     count: receipts
@@ -166,8 +222,8 @@ export default function WorkTray() {
         </div>
       </div>
 
-      {/* 4 cubells d'acció */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {/* 5 cubells d'acció */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {bucketCounts.map((b) => (
           <button
             key={b.key}
@@ -225,12 +281,12 @@ export default function WorkTray() {
         <div className="flex flex-wrap gap-4 text-sm">
           <span className="text-gray-500">
             {advanced ? advanced.label : bucket.label}:{" "}
-            <span className="font-semibold text-gray-800">{displayFiltered.length}</span>
+            <span className="font-semibold text-gray-800">{sorted.length}</span>
           </span>
           <span className="text-gray-500">
             Import total:{" "}
             <span className="font-semibold text-gray-800">
-              {displayFiltered.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0).toFixed(2)} €
+              {sorted.reduce((sum: number, r: any) => sum + (parseFloat(r.returnedAmount) || 0), 0).toFixed(2)} €
             </span>
           </span>
         </div>
@@ -238,29 +294,30 @@ export default function WorkTray() {
 
       {/* Taula */}
       <div className={`rounded-lg border ${bucket.borderColor} bg-white shadow overflow-hidden`}>
-        {displayFiltered.length > 0 ? (
+        {sorted.length > 0 ? (
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left p-3">ID</th>
-                <th className="text-left p-3">Client</th>
-                <th className="text-left p-3">Període</th>
-                <th className="text-right p-3">Import</th>
-                <th className="text-left p-3">Data devolució</th>
-                <th className="text-left p-3">Dies notificat</th>
-                <th className="text-left p-3">Última resposta</th>
-                <th className="text-center p-3">Estat</th>
-                <th className="text-left p-3">Acció recomanada</th>
+                <SortHead col="id" label="ID" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="client" label="Client" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="servicePeriod" label="Període" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="amount" label="Import" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="right" />
+                <SortHead col="returnDate" label="Data devolució" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="daysNotified" label="Dies notificat" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="lastResponse" label="Última resposta" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortHead col="status" label="Estat" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="center" />
+                <SortHead col="action" label="Acció recomanada" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th className="text-right p-3">Accions</th>
               </tr>
             </thead>
             <tbody>
-              {displayFiltered.map((r: any) => {
+              {sorted.map((r: any) => {
                 const daysNotified = daysSince(r.notifiedAt);
                 const lastInbound = r.messages?.filter((m: any) => m.direction === "INBOUND").slice(-1)[0];
-                const action = recommendedAction(r.status);
+                const replied = hasClientReplied(r);
+                const action = recommendedAction(r.status, r);
                 return (
-                  <tr key={r.id} className="border-t hover:bg-gray-50">
+                  <tr key={r.id} className={`border-t hover:bg-gray-50 ${replied ? "border-l-4 border-l-green-400 bg-green-50/60" : ""}`}>
                     <td className="p-3">
                       <Link to={`/receipts/${r.id}`} className="text-blue-600 hover:underline font-medium">
                         #{r.id}
@@ -282,7 +339,12 @@ export default function WorkTray() {
                       ) : "-"}
                     </td>
                     <td className="p-3 text-xs max-w-[120px] truncate" title={lastInbound?.content}>
-                      {lastInbound?.content || "-"}
+                      {lastInbound?.content ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-green-600 font-bold" title="El client ha contestat">↩</span>
+                          <span className="truncate">{lastInbound.content}</span>
+                        </span>
+                      ) : "-"}
                     </td>
                     <td className="p-3"><StatusBadge status={r.status} /></td>
                     <td className="p-3">

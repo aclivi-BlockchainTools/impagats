@@ -38,12 +38,14 @@ export default function Dashboard() {
 
   const toNotify = (data.countEmparellat || 0) + (data.countWhatsappError || 0);
   const waiting = (data.notified || 0) + (data.waitingProof || 0) + (data.countPagamentDeclarat || 0);
-  const toReview = (data.countRevisar || 0) + (data.countPendentRevisio || 0) + (data.countJustificantRebut || 0);
+  const toReview = data.countRevisar || 0;
+  const proofReview = (data.countPendentRevisio || 0) + (data.countJustificantRebut || 0);
 
   const trayActions: TrayAction[] = [
     { key: "to_notify", label: "Per notificar", count: toNotify, icon: "📤", color: "text-blue-700", border: "border-blue-400" },
     { key: "waiting", label: "Esperant resposta", count: waiting, icon: "⏳", color: "text-purple-700", border: "border-purple-400" },
-    { key: "to_review", label: "Per revisar", count: toReview, icon: "🔍", color: "text-amber-700", border: "border-amber-400" },
+    { key: "to_review", label: "Per revisar", count: toReview, icon: "⚠️", color: "text-amber-700", border: "border-amber-400" },
+    { key: "proof_review", label: "Pendent de revisió", count: proofReview, icon: "🔎", color: "text-rose-700", border: "border-rose-400" },
   ].filter(a => a.count > 0);
 
   return (
@@ -52,27 +54,33 @@ export default function Dashboard() {
 
       {/* Targetes de mètriques */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard label="Pendents revisió" value={data.pending}
+        <StatsCard label="Per processar" value={(data.countDETECTAT || 0) + (data.countEmparellat || 0)}
+          subtitle="Detectats pendents de notificar"
+          icon="📋" color="bg-blue-50" accent={ACCENT.blue} to="/work-tray?bucket=to_notify" />
+        <StatsCard label="Revisar" value={data.countRevisar || 0}
           subtitle="Requereixen atenció manual"
-          icon="🔍" color="bg-orange-50" accent={ACCENT.orange} />
+          icon="⚠️" color="bg-orange-50" accent={ACCENT.orange} to="/work-tray?bucket=to_review" />
+        <StatsCard label="Pendent de revisió" value={data.countPendentRevisio || 0}
+          subtitle="Justificants per validar"
+          icon="🔎" color="bg-rose-50" accent={ACCENT.rose} to="/work-tray?bucket=proof_review" />
         <StatsCard label="Pagament declarat" value={data.paymentClaimed || 0}
           subtitle="Deutor diu que ha pagat"
-          icon="💬" color="bg-rose-50" accent={ACCENT.rose} />
+          icon="💬" color="bg-rose-50" accent={ACCENT.rose} to="/work-tray?bucket=waiting&filter=payment_claimed" />
         <StatsCard label="Notificats" value={data.notified}
           subtitle="WhatsApp enviat"
-          icon="📤" color="bg-purple-50" accent={ACCENT.purple} />
+          icon="📤" color="bg-purple-50" accent={ACCENT.purple} to="/work-tray?bucket=waiting" />
         <StatsCard label="Esperant justificant" value={data.waitingProof || 0}
           subtitle="Agent espera resposta"
-          icon="⏳" color="bg-indigo-50" accent={ACCENT.indigo} />
+          icon="⏳" color="bg-indigo-50" accent={ACCENT.indigo} to="/work-tray?bucket=waiting&filter=waiting_promise" />
         <StatsCard label="Justificant rebut" value={data.proofPending}
           subtitle="Pendent de validar"
-          icon="📎" color="bg-emerald-50" accent={ACCENT.emerald} />
+          icon="📎" color="bg-emerald-50" accent={ACCENT.emerald} to="/work-tray?bucket=proof_review" />
         <StatsCard label="Tancats / Confirmats" value={data.closed}
           subtitle="Resolts"
-          icon="✅" color="bg-green-50" accent={ACCENT.green} />
+          icon="✅" color="bg-green-50" accent={ACCENT.green} to="/work-tray?bucket=closed" />
         <StatsCard label="Error WhatsApp" value={data.whatsappError || 0}
           subtitle="Requereix intervenció"
-          icon="⚠️" color="bg-red-50" accent={ACCENT.red} />
+          icon="⚠️" color="bg-red-50" accent={ACCENT.red} to="/work-tray?bucket=to_notify&filter=whatsapp_error" />
         <StatsCard label="Import pendent" value={`${totalOwed.toFixed(2)} €`}
           subtitle={`${debtorCount} ${debtorCount === 1 ? "deutor" : "deutors"}`}
           icon="💰" color="bg-blue-50" accent={ACCENT.blue} />

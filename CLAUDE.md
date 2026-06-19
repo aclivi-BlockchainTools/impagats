@@ -14,7 +14,7 @@ App web per gestionar impagats bancaris: importar moviments (CSV), detectar devo
 - **Backend**: Node.js + Express 4 + TypeScript (port 3001)
 - **BD**: PostgreSQL 16 a Docker (port 5433 host → 5432 container)
 - **ORM**: Prisma 5
-- **WhatsApp**: Servidor OpenWA a `192.168.0.194:2785`, API Key configurada
+- **WhatsApp**: Servidor OpenWA a `192.168.0.194:2886`, API Key configurada
 
 ## Estructura de fitxers
 
@@ -35,7 +35,7 @@ impagats/
 │   ├── tsconfig.json
 │   ├── jest.config.js               ← Jest + ts-jest
 │   ├── prisma/
-│   │   ├── schema.prisma            ← 9 models
+│   │   ├── schema.prisma            ← 18 models
 │   │   └── migrations/
 │   └── src/
 │       ├── index.ts                 ← entry point (logger)
@@ -98,7 +98,7 @@ impagats/
             └── Settings.tsx
 ```
 
-## Model de dades (9 entitats)
+## Model de dades (18 entitats)
 
 | Entitat | Camps clau |
 |---------|-----------|
@@ -121,7 +121,7 @@ impagats/
 - **EMPARELLAT**: client amb WhatsApp confirmat, llest per enviar missatge
 - **REVISAR**: cal revisió manual (auto-creat, sense WhatsApp, match baix, timeout agent, error agent)
 - **NOTIFICAT**: WhatsApp enviat
-- **ESPERANT_DETALLS**: agent ha demanat més dades (resposta ambigua), esperant resposta del deutor
+- **ESPERANT_JUSTIFICANT**: agent espera justificant del deutor
 - **JUSTIFICANT_REBUT**: client ha respost amb comprovant
 - **PAGAMENT_CONFIRMAT**: transferència rebuda i conciliada
 - **TANCAT**: tancat manualment
@@ -228,14 +228,14 @@ cd frontend && npm run dev    # → localhost:5174 (o 5173 si lliure)
 - Uploads limitats: CSV 5MB, comprovants 10MB, JSON body 1MB
 - Webhook OpenWA rep JSON (no multipart), suporta media per URL/base64
 - Webhook verificat amb token secret per URL (WEBHOOK_SECRET al .env, "impagats-webhook-secret")
-- Webhook cerca rebuts en: NOTIFICAT, ESPERANT_DETALLS, DETECTAT, EMPARELLAT, REVISAR, JUSTIFICANT_REBUT
-- Agent només auto-respon en NOTIFICAT/ESPERANT_DETALLS; altres estats guarden missatge en silenci
+- Webhook cerca rebuts en: NOTIFICAT, ESPERANT_JUSTIFICANT, DETECTAT, EMPARELLAT, REVISAR, JUSTIFICANT_REBUT
+- Agent només auto-respon en NOTIFICAT/ESPERANT_JUSTIFICANT; altres estats guarden missatge en silenci
 - .env conté OPENWA_BASE_URL, OPENWA_API_KEY i WEBHOOK_SECRET configurats
 - Structured logging amb pino + pino-pretty en dev
-- Tests amb Jest + ts-jest. 43 tests en 6 suites (csvImporter, returnDetector, matchingEngine, conversationAgent, health, clients)
+- Tests amb Jest + ts-jest. 172 tests en 14 suites
 - Agent conversacional: classificació regex CAT/ES, 4 intencions (pagament_clar, pagament_ambigu, comprovant_enviat, altres_temes)
 - Agent: paraules clau i plantilles configurables via AppSettings (Settings UI)
-- Agent: timeout 24h configurable per ESPERANT_DETALLS → timeout expirat → REVISAR amb nota [Timeout agent]
+- Agent: timeout 24h configurable per ESPERANT_JUSTIFICANT → timeout expirat → REVISAR amb nota [Timeout agent]
 - Agent: no respon si està desactivat (agent.enabled=false) o si el deutor ha estat redirigit
 - Agent: resposta sempre en català (plantilles fixes)
 - Agent: si falla → envia missatge de disculpa al deutor + marca REVISAR + [Agent error]
@@ -358,12 +358,15 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 - Env vars amb `${VAR:-}`: JWT_SECRET, WEBHOOK_SECRET, CORS_ORIGIN, ADMIN_*, OPENWA_*
 - Auth middleware loga warning si NODE_ENV=production i JWT_SECRET no definit
 
-## Safata — 4 cubells
+## Safata — 5 cubells
 
-- Vista principal: Per notificar, Esperant resposta, Per revisar, Tancat
+- Vista principal: Per notificar, Esperant resposta, Per revisar (REVISAR), Pendent de revisió (PENDENT_REVISIO + JUSTIFICANT_REBUT), Tancat
 - Filtres avançats amb toggle per granularitat
 - Dashboard enllaça via `?bucket=`
 - `TrayFilter.customFilter` per subdividir estats (ex: REVISAR amb/sense WhatsApp)
+- Files amb resposta del client: vora verda esquerra + icona ↩ a la columna "Última resposta"
+- `reviewReason()` mostra el motiu concret de REVISAR: "Falta WhatsApp", "Sense client", "Timeout agent", "Error agent", "Revisió pendent"
+- Filtres avançats per REVISAR: "Falta WhatsApp", "Sense client", "Altres motius"
 
 ## Nous endpoints
 
@@ -371,5 +374,45 @@ message → paymentProof → reconciliationMatch → matchCandidate → whatsapp
 |------|-----------|
 | `POST /api/scheduler/run` | Disparar tick manual del scheduler |
 | `POST /api/returned-receipts/notify-all` | Notificar tots els EMPARELLAT |
+
+## Webhook — filtrat d'ecos i missatges buits
+
+- `data.fromMe` → ignorar (són ecos dels nostres propis missatges sortints, OpenWA els reenvia)
+- Sense `fromMe`: els missatges sortints disparen el webhook amb `from` = número del client → es processaven com a entrants
+- Missatges sense `text` ni `media` → ignorar (receipts, acks, etc.)
+- **IMPORTANT**: SEMPRE comprovar `fromMe` abans de processar cap missatge
+
+## Outbox — no crea Message duplicat
+
+- `processOne()` ja NO crea cap registre `Message`
+- Els callers (webhook, notificationService, returnedReceipts) són responsables de crear el `Message`
+- `notificationService`: crea `Message` per a TOTS els rebuts (abans saltava el primer delegant a l'outbox)
+
+## OpenWA — error millorat
+
+- `sendMessage()` captura el cos complet de l'error (JSON o text), no només `.message`
+- Inclou `status`, `statusText` i body al `logger.warn`
+- Errors com "Internal server error" ara mostren el detall real (número no vàlid, sessió no ready, etc.)
+
+## Columnes ordenables
+
+- Totes les llistes: clic a la capçalera per ordenar asc/desc
+- Component compartit: `frontend/src/components/SortHead.tsx`
+- Clients: Nom, Poble, WhatsApp, Email, Estat
+- Factures: Núm. Factura, Client, Data, Import, Estat
+- Impagats: Data devolució, Client, Factura, Motiu, Període, Data emissió, Import, Estat, Seguiment
+- Safata: ID, Client, Període, Import, Data devolució, Dies notificat, Última resposta, Estat, Acció recomanada
+
+## useApi — dades persistents durant recàrrega
+
+- `loading` només mostra pantalla de càrrega si no hi ha dades prèvies (`loading && !data`)
+- Durant refrescos (cerca, filtre), es manté la taula visible amb les dades anteriors
+- Evita que l'input de cerca perdi el focus en escriure
+
+## StatsCard amb enllaços
+
+- Prop `to` opcional: si es passa, la targeta és un `<Link>` clicable
+- Al Dashboard, totes les targetes enllacen a la Safata amb el cubell/filtre corresponent
+- "Import pendent" és l'única sense enllaç
 
 
